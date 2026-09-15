@@ -7,16 +7,16 @@ const GESAT_CONFIG = {
   },
 
   data: {
-    boliviaBasemap: "./data/bolivia_basemap.pmtiles",
-    protectedAreas: "./data/protected_areas.pmtiles",
+    boliviaBasemap: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/bolivia_basemap.pmtiles",
+    protectedAreas: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/protected_areas.pmtiles",
 
     /* 行政界線専用のラインPMTiles */
     administrativeBoundaryLines:
-      "./data/administrative_boundaries_pl.pmtiles",
+      "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/administrative_boundaries_pl.pmtiles",
 
     /* 行政名称専用として残す従来のポリゴンPMTiles */
     administrativeNames:
-      "./data/administrative_boundaries.pmtiles"
+      "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/administrative_boundaries.pmtiles"
   },
 
   googleSatelliteUrl: "https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=AJVsH2z8ozcnNBa_jqjtqaIr95p8ZpgVSDw67aJGRORtsHlElRRynOFhuJJv7HGZUuGoUS-i1UtN-Z7n-5FBd0jnmg&key=AIzaSyDqgh_3PJSTI2dNUwhFRuzj0Zk-T6ds1XQ",
