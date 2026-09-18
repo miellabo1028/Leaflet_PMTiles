@@ -110,17 +110,31 @@ window.s2_2026_layer = null;
           pane: "sentinelPane",
           // 定義した専用ペインを指定して境界線の裏に隠す
           // ==================================================
-          // 【修正】RGBがほぼ真っ黒（ノイズ含む）な外周ピクセルを強制透過
+          // 【解決】4番目のアルファバンドを正確に透過情報として処理させる
           // ==================================================
-          pixelFilter: function (values) {
-            // データが欠損している場合
-            if (values[0] === null || values[0] === undefined) return false;
+          customDrawFunction: function(canvas, r, c, targetX, targetY, targetWidth, targetHeight, values) {
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(targetWidth, targetHeight);
+            const data = imgData.data;
 
-            // RGBすべての値が 5 以下の極めて暗い黒（余白領域）を検知
-            // ※ 山の影（本物のデータ）はスケール調整でこれより明るい値に持ち上がっているため保護されます
-            const isBlackBorder = values[0] <= 5 && values[1] <= 5 && values[2] <= 5;
-            
-            return !isBlackBorder; // 真っ黒な余白ならfalseを返して透明に、それ以外を描画
+            // values[0]=赤, values[1]=緑, values[2]=青, values[3]=アルファ(透過)
+            for (let i = 0; i < targetWidth * targetHeight; i++) {
+              const rVal = values[0][i];
+              const gVal = values[1][i];
+              const bVal = values[2][i];
+              
+              // 4番目のアルファバンドが存在する場合はそれを使用、ない場合は外枠の黒を透過
+              const aVal = (values[3] && values[3][i] !== undefined) ? values[3][i] : 
+                           (rVal <= 5 && gVal <= 5 && bVal <= 5 ? 0 : 255);
+
+              const idx = i * 4;
+              data[idx]     = rVal; // 赤
+              data[idx + 1] = gVal; // 緑
+              data[idx + 2] = bVal; // 青
+              data[idx + 3] = aVal; // アルファ（0で完全透明、255で完全不透明）
+            }
+
+            ctx.putImageData(imgData, targetX, targetY);
           }
         });
         if (config.visibility.sentinel2025) {
