@@ -107,7 +107,19 @@ window.s2_2026_layer = null;
           georaster: georaster,
           opacity: 1.0,
           resolution: 256,
-          pane: "sentinelPane" // 定義した専用ペインを指定して境界線の裏に隠す
+          pane: "sentinelPane",
+          // 定義した専用ペインを指定して境界線の裏に隠す
+          // ==================================================
+          // 【追記】RGBがすべて0（真っ黒）のピクセルを完全に透明化する
+          // ==================================================
+          pixelFilter: function (values) {
+            // values[0]=赤, values[1]=緑, values[2]=青
+            // すべてが0、またはデータ欠損(null)の場合に true を返して透明にします
+            const isNoData = values[0] === 0 && values[1] === 0 && values[2] === 0;
+            const isNull = values[0] === null || values[1] === null || values[2] === null;
+            
+            return !(isNoData || isNull); // trueのピクセルだけを描画、falseは透明に
+          }
         });
         if (config.visibility.sentinel2025) {
           window.s2_2025_layer.addTo(map);
@@ -124,7 +136,17 @@ window.s2_2026_layer = null;
           georaster: georaster,
           opacity: 1.0,
           resolution: 256,
-          pane: "sentinelPane"
+          pane: "sentinelPane",
+
+          // ==================================================
+          // 【追記】2026年版にも同じフィルターを適用
+          // ==================================================
+          pixelFilter: function (values) {
+            const isNoData = values[0] === 0 && values[1] === 0 && values[2] === 0;
+            const isNull = values[0] === null || values[1] === null || values[2] === null;
+            return !(isNoData || isNull);
+          }
+          
         });
         if (config.visibility.sentinel2026) {
           window.s2_2026_layer.addTo(map);
