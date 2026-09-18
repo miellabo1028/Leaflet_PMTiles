@@ -144,13 +144,19 @@ window.s2_2026_layer = null;
           resolution: 256,
           pane: "sentinelPane",
 
-          // ==================================================
-          // 【追記】2026年版にも同じフィルターを適用
-          // ==================================================
-          pixelFilter: function (values) {
-            const isNoData = values[0] === 0 && values[1] === 0 && values[2] === 0;
-            const isNull = values[0] === null || values[1] === null || values[2] === null;
-            return !(isNoData || isNull);
+          pixelValuesToColorFn: function (values) {
+            const r = values[0];
+            const g = values[1];
+            const b = values[2];
+
+            // データが欠損している、またはRGBすべてが 5 以下のほぼ真っ黒な余白領域の場合
+            // null を返すことで、ライブラリが自動的にそのピクセルを100%完全透明にしてくれます
+            if (r === null || g === null || b === null || (r <= 5 && g <= 5 && b <= 5)) {
+              return null; 
+            }
+
+            // 正常なデータ領域は、元のRGBの色をそのままブラウザに返します
+            return "rgb(" + r + "," + g + "," + b + ")";
           }
           
         });
