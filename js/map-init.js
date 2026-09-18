@@ -110,31 +110,21 @@ window.s2_2026_layer = null;
           pane: "sentinelPane",
           // 定義した専用ペインを指定して境界線の裏に隠す
           // ==================================================
-          // 【解決】4番目のアルファバンドを正確に透過情報として処理させる
+          // 【公式推奨】黒いフチ（ノイズ含む）を完全に透過する関数
           // ==================================================
-          customDrawFunction: function(canvas, r, c, targetX, targetY, targetWidth, targetHeight, values) {
-            const ctx = canvas.getContext('2d');
-            const imgData = ctx.createImageData(targetWidth, targetHeight);
-            const data = imgData.data;
+          pixelValuesToColorFn: function (values) {
+            const r = values[0];
+            const g = values[1];
+            const b = values[2];
 
-            // values[0]=赤, values[1]=緑, values[2]=青, values[3]=アルファ(透過)
-            for (let i = 0; i < targetWidth * targetHeight; i++) {
-              const rVal = values[0][i];
-              const gVal = values[1][i];
-              const bVal = values[2][i];
-              
-              // 4番目のアルファバンドが存在する場合はそれを使用、ない場合は外枠の黒を透過
-              const aVal = (values[3] && values[3][i] !== undefined) ? values[3][i] : 
-                           (rVal <= 5 && gVal <= 5 && bVal <= 5 ? 0 : 255);
-
-              const idx = i * 4;
-              data[idx]     = rVal; // 赤
-              data[idx + 1] = gVal; // 緑
-              data[idx + 2] = bVal; // 青
-              data[idx + 3] = aVal; // アルファ（0で完全透明、255で完全不透明）
+            // データが欠損している、またはRGBすべてが 5 以下のほぼ真っ黒な余白領域の場合
+            // null を返すことで、ライブラリが自動的にそのピクセルを100%完全透明にしてくれます
+            if (r === null || g === null || b === null || (r <= 5 && g <= 5 && b <= 5)) {
+              return null; 
             }
 
-            ctx.putImageData(imgData, targetX, targetY);
+            // 正常なデータ領域は、元のRGBの色をそのままブラウザに返します
+            return "rgb(" + r + "," + g + "," + b + ")";
           }
         });
         if (config.visibility.sentinel2025) {
