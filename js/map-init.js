@@ -1,3 +1,7 @@
+// 他の制御ファイル（layer-control.jsなど）からアクセスできるようにグローバル変数として定義
+window.s2_2025_layer = null;
+window.s2_2026_layer = null;
+
 (function initializeGesatMap() {
   const status = document.getElementById("status");
 
@@ -15,6 +19,10 @@
       throw new Error("Protomaps Leaflet was not loaded.");
     }
 
+    if (typeof parseGeoraster === "undefined") {
+      throw new Error("georaster library was not loaded.");
+    }
+
     const config = GESAT_CONFIG;
 
     const map = L.map("map", {
@@ -24,7 +32,12 @@
       maxZoom: config.map.maxZoom
     });
 
+    // --------------------------------------------------
+    // 重ね合わせ順序（Pane）の定義に sentinelPane (250) を追加
+    // 背景地図(デフォルト)より手前、ベクトルタイル(300〜)より奥に配置します
+    // --------------------------------------------------
     const paneDefinitions = {
+      sentinelPane: 250, // COG画像用の最背面ペイン
       boliviaBasemapPane: 300,
       protectedAreasPane: 400,
 
@@ -85,6 +98,43 @@
 
     initialBaseLayer.addTo(map);
 
+    // --------------------------------------------------
+    // 【非同期処理】Cloudflare R2 から Sentinel-2 COG をパース・ロード
+    // --------------------------------------------------
+    if (config.data.sentinel2025) {
+      parseGeoraster(config.data.sentinel2025).then(function (georaster) {
+        window.s2_2025_layer = new GeoRasterLayer({
+          georaster: georaster,
+          opacity: 1.0,
+          resolution: 256,
+          pane: "sentinelPane" // 定義した専用ペインを指定して境界線の裏に隠す
+        });
+        if (config.visibility.sentinel2025) {
+          window.s2_2025_layer.addTo(map);
+        }
+        console.log("Sentinel-2 2025 COG successfully loaded.");
+      }).catch(function (err) {
+        console.error("Error loading Sentinel-2 2025 COG:", err);
+      });
+    }
+
+    if (config.data.sentinel2026) {
+      parseGeoraster(config.data.sentinel2026).then(function (georaster) {
+        window.s2_2026_layer = new GeoRasterLayer({
+          georaster: georaster,
+          opacity: 1.0,
+          resolution: 256,
+          pane: "sentinelPane"
+        });
+        if (config.visibility.sentinel2026) {
+          window.s2_2026_layer.addTo(map);
+        }
+        console.log("Sentinel-2 2026 COG successfully loaded.");
+      }).catch(function (err) {
+        console.error("Error loading Sentinel-2 2026 COG:", err);
+      });
+    }
+
     const layers = {
       boliviaBasemap: createBoliviaBasemapLayer(),
       protectedAreas: createProtectedAreasLayer(),
@@ -93,7 +143,7 @@
     };
 
     const visibility = {
-      ...config.visible
+      ...config.visibility // config.visible から config.visibility に修正（map-config.jsの定義に準拠）
     };
 
     if (visibility.boliviaBasemap) {
