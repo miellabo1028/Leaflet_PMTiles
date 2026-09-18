@@ -110,15 +110,17 @@ window.s2_2026_layer = null;
           pane: "sentinelPane",
           // 定義した専用ペインを指定して境界線の裏に隠す
           // ==================================================
-          // 【追記】RGBがすべて0（真っ黒）のピクセルを完全に透明化する
+          // 【修正】RGBがほぼ真っ黒（ノイズ含む）な外周ピクセルを強制透過
           // ==================================================
           pixelFilter: function (values) {
-            // values[0]=赤, values[1]=緑, values[2]=青
-            // すべてが0、またはデータ欠損(null)の場合に true を返して透明にします
-            const isNoData = values[0] === 0 && values[1] === 0 && values[2] === 0;
-            const isNull = values[0] === null || values[1] === null || values[2] === null;
+            // データが欠損している場合
+            if (values[0] === null || values[0] === undefined) return false;
+
+            // RGBすべての値が 5 以下の極めて暗い黒（余白領域）を検知
+            // ※ 山の影（本物のデータ）はスケール調整でこれより明るい値に持ち上がっているため保護されます
+            const isBlackBorder = values[0] <= 5 && values[1] <= 5 && values[2] <= 5;
             
-            return !(isNoData || isNull); // trueのピクセルだけを描画、falseは透明に
+            return !isBlackBorder; // 真っ黒な余白ならfalseを返して透明に、それ以外を描画
           }
         });
         if (config.visibility.sentinel2025) {
