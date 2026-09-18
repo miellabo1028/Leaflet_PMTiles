@@ -148,8 +148,14 @@ window.s2_2026_layer = null;
         window.s2_2026_layer = new GeoRasterLayer({
           georaster: georaster,
           opacity: 1.0,
-          resolution: 256,
           pane: "sentinelPane",
+
+          // ==================================================
+          // 【超重要】Leaflet版を限界まで高速化する3つのオプション
+          // ==================================================
+          resolution: 64,        // 256から64に下げます（計算量を16分の1に激減させます）
+          updateWhenIdle: true,   // 地図のドラッグ中ではなく、指を離した(静止した)時に描画
+          updateWhenZooming: false, // ズームアニメーション中の余計な再計算をストップ
 
           pixelValuesToColorFn: function (values) {
             const r = values[0];
