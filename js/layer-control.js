@@ -589,6 +589,6 @@ window.selectedMunicipios = [];
 
 // 👇【テスト用：layer-control.js の一番下にそのまま貼り付けてください】
 console.log("★★★★★ LAYER CONTROL FILE SUCCESSFULLY LOADED ★★★★★");
-alert("layer-control.js の読み込みに成功しました！");
+alert("For debug: LAYER CONTROL FILE SUCCESSFULLY LOADED！");
 window.testGesatFunction = function() { console.log("Test OK"); };
 
