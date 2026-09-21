@@ -81,7 +81,7 @@ window.s2_2026_layer = null;
       "Online OpenStreetMap": osm
     };
 
-    let initialBaseLayer = esri;
+    let initialBaseLayer = osm;
 
     if (config.googleSatelliteUrl) {
       const googleSatellite = L.tileLayer(
@@ -93,7 +93,7 @@ window.s2_2026_layer = null;
       );
 
       baseLayers["Google Satellite"] = googleSatellite;
-      initialBaseLayer = googleSatellite;
+      // initialBaseLayer = googleSatellite;
     }
 
     initialBaseLayer.addTo(map);
