@@ -476,7 +476,7 @@ window.selectedMunicipios = [];
           dropdown.classList.add("hidden");
 
           const bounds = item.layer.getBounds();
-          map.flyToBounds(bounds, { padding:, duration: 1.2 });
+          map.flyToBounds(bounds, { padding:20, 20 duration: 1.2 });
 
           item.layer.setStyle({ color: "#ffd400", weight: 4.5, opacity: 1.0 });
           
