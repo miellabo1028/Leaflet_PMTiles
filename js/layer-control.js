@@ -378,6 +378,7 @@ window.selectedMunicipios = [];
     if (!map.getPane("fgbSelectionPane")) {
       map.createPane("fgbSelectionPane");
       map.getPane("fgbSelectionPane").style.zIndex = "550";
+      map.getPane("fgbSelectionPane").style.pointerEvents = "none";
     }
 
     // トグルボタン
@@ -405,6 +406,7 @@ window.selectedMunicipios = [];
     // レイヤー初期化
     fgbGeojsonLayer = L.geoJSON(null, {
       pane: "fgbSelectionPane",
+      interactive: true,
       style: function() {
         return { color: "#ff3b30", weight: 1.5, fillInverse: false, fillOpacity: 0, opacity: 0, fillColor: "#ff3b30" };
       },
