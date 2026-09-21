@@ -19,9 +19,11 @@ const GESAT_CONFIG = {
       "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/administrative_boundaries.pmtiles",
 
     sentinel2025: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/s2_Tarija_RGB_2025_mosaic_3857r11.tif",
-    sentinel2026: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/s2_Tarija_RGB_2026_mosaic_3857r2.tif"
+    sentinel2026: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/s2_Tarija_RGB_2026_mosaic_3857r2.tif",
     
-  },
+  // 今回のボリビア市町村FlatGeobufを追加
+    boliviaMunicipiosFgb: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/bolivia_municipios.fgb"
+},
 
   googleSatelliteUrl: "https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=AJVsH2z8ozcnNBa_jqjtqaIr95p8ZpgVSDw67aJGRORtsHlElRRynOFhuJJv7HGZUuGoUS-i1UtN-Z7n-5FBd0jnmg&key=AIzaSyDqgh_3PJSTI2dNUwhFRuzj0Zk-T6ds1XQ",
 
