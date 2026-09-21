@@ -353,6 +353,9 @@ function addGesatLayerControl(map, layers, visibility) {
 
 // === layer-control.js の一番最後（ } のすぐ下）に追記する完全コード ===
 
+// =========================================================================
+// 後から追記したFGB用拡張ロジック（エラー隔離・防御型完全版）
+// =========================================================================
 window.selectedMunicipios = []; 
 
 (function prepareFgbModule() {
@@ -362,7 +365,6 @@ window.selectedMunicipios = [];
 
   console.log("[GESAT FGB] Interactive Module Embedded in Layer Control.");
 
-  // レイヤーコントロールが追加されると同時に、確実にこのロジックがDOMと結合します
   window.linkGesatInteractiveLogic = async function(map) {
     console.log("[GESAT FGB] linkGesatInteractiveLogic execute!");
 
@@ -375,13 +377,16 @@ window.selectedMunicipios = [];
       return;
     }
 
+    // 専用ペインの確保
     if (!map.getPane("fgbSelectionPane")) {
       map.createPane("fgbSelectionPane");
       map.getPane("fgbSelectionPane").style.zIndex = "550";
       map.getPane("fgbSelectionPane").style.pointerEvents = "none";
     }
 
-    // トグルボタン
+    // -----------------------------------------------------------------
+    // 処理1: トグルボタンのイベント登録 (最優先で実行)
+    // -----------------------------------------------------------------
     btnSelectMode.addEventListener("click", function() {
       isSelectMode = !isSelectMode;
       console.log("[GESAT FGB] Select Mode:", isSelectMode);
@@ -403,7 +408,9 @@ window.selectedMunicipios = [];
       }
     });
 
-    // レイヤー初期化
+    // -----------------------------------------------------------------
+    // 処理2: レイヤーの初期化
+    // -----------------------------------------------------------------
     fgbGeojsonLayer = L.geoJSON(null, {
       pane: "fgbSelectionPane",
       interactive: true,
@@ -436,21 +443,9 @@ window.selectedMunicipios = [];
       }
     }).addTo(map);
 
-    // R2からデータをフェッチ
-    try {
-      const fgbUrl = "https://r2.dev";
-      const response = await fetch(fgbUrl);
-      if (!response.ok) throw new Error("R2 connection failed");
-
-      for await (const feature of flatgeobuf.deserialize(response.body)) {
-        fgbGeojsonLayer.addData(feature);
-      }
-      console.log(`[GESAT FGB] Success! Total polygons loaded: ${allMunicipiosData.length}`);
-    } catch (error) {
-      console.error("[GESAT FGB] Fetch error:", error);
-    }
-
-    // 検索入力窓
+    // -----------------------------------------------------------------
+    // 処理3: 検索入力窓のイベント登録 (通信エラーの影響を受けない位置に配置)
+    // -----------------------------------------------------------------
     txtSearch.addEventListener("input", function() {
       const query = txtSearch.value.trim().toLowerCase();
       dropdown.innerHTML = "";
@@ -502,6 +497,26 @@ window.selectedMunicipios = [];
     document.addEventListener("click", function(e) {
       if (e.target !== txtSearch) dropdown.classList.add("hidden");
     });
+
+    // -----------------------------------------------------------------
+    // 処理4: 最末尾でCloudflare R2からデータを非同期フェッチ (完全に独立)
+    // -----------------------------------------------------------------
+    console.log("[GESAT FGB] Starting FlatGeobuf fetch sequence...");
+    (async function fetchFgbData() {
+      try {
+        const fgbUrl = "https://r2.dev";
+        const response = await fetch(fgbUrl);
+        if (!response.ok) throw new Error("R2 storage HTTP error: " + response.status);
+
+        const iterator = flatgeobuf.deserialize(response.body);
+        for await (const feature of iterator) {
+          fgbGeojsonLayer.addData(feature);
+        }
+        console.log(`[GESAT FGB] Success! Total polygons loaded: ${allMunicipiosData.length}`);
+      } catch (error) {
+        console.error("[GESAT FGB] CRITICAL CRASH during FGB fetch, but UI events are saved:", error);
+      }
+    })();
+
   };
 })();
-
