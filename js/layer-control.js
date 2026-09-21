@@ -346,3 +346,156 @@ function addGesatLayerControl(map, layers, visibility) {
   control.addTo(map);
   return control;
 }
+
+// === layer-control.js の一番最後（ } のすぐ下）に追記する完全コード ===
+
+window.selectedMunicipios = []; 
+
+(function prepareFgbModule() {
+  let isSelectMode = false;
+  let fgbGeojsonLayer = null;
+  const allMunicipiosData = [];
+
+  console.log("[GESAT FGB] Interactive Module Embedded in Layer Control.");
+
+  // レイヤーコントロールが追加されると同時に、確実にこのロジックがDOMと結合します
+  window.linkGesatInteractiveLogic = async function(map) {
+    console.log("[GESAT FGB] linkGesatInteractiveLogic execute!");
+
+    const btnSelectMode = document.getElementById("btn-select-mode");
+    const txtSearch = document.getElementById("txt-municipio-search");
+    const dropdown = document.getElementById("search-results-dropdown");
+
+    if (!btnSelectMode || !txtSearch || !dropdown) {
+      console.error("[GESAT FGB] UI Elements missing inside control panel!");
+      return;
+    }
+
+    if (!map.getPane("fgbSelectionPane")) {
+      map.createPane("fgbSelectionPane");
+      map.getPane("fgbSelectionPane").style.zIndex = "550";
+    }
+
+    // トグルボタン
+    btnSelectMode.addEventListener("click", function() {
+      isSelectMode = !isSelectMode;
+      console.log("[GESAT FGB] Select Mode:", isSelectMode);
+      if (isSelectMode) {
+        btnSelectMode.textContent = "Select Municipios: ON";
+        btnSelectMode.className = "gesat-btn btn-active";
+        if (fgbGeojsonLayer) fgbGeojsonLayer.setStyle({ fillOpacity: 0.12, opacity: 0.5 });
+      } else {
+        btnSelectMode.textContent = "Select Municipios: OFF";
+        btnSelectMode.className = "gesat-btn btn-inactive";
+        if (fgbGeojsonLayer) {
+          fgbGeojsonLayer.eachLayer(function(layer) {
+            const isSelected = window.selectedMunicipios.some(function(f) {
+              return f.properties.MUN_CODE === layer.feature.properties.MUN_CODE;
+            });
+            if (!isSelected) layer.setStyle({ fillOpacity: 0, opacity: 0 });
+          });
+        }
+      }
+    });
+
+    // レイヤー初期化
+    fgbGeojsonLayer = L.geoJSON(null, {
+      pane: "fgbSelectionPane",
+      style: function() {
+        return { color: "#ff3b30", weight: 1.5, fillInverse: false, fillOpacity: 0, opacity: 0, fillColor: "#ff3b30" };
+      },
+      onEachFeature: function(feature, layer) {
+        allMunicipiosData.push({ feature: feature, layer: layer });
+
+        layer.bindTooltip(`<strong>${feature.properties.MUN_NAME}</strong><br><small>${feature.properties.DEP_NAME} / ${feature.properties.PRV_NAME}</small>`, {
+          sticky: true, direction: "auto"
+        });
+
+        layer.on("click", function() {
+          if (!isSelectMode) return;
+          const props = feature.properties;
+          const index = window.selectedMunicipios.findIndex(function(f) {
+            return f.properties.MUN_CODE === props.MUN_CODE;
+          });
+
+          if (index > -1) {
+            window.selectedMunicipios.splice(index, 1);
+            layer.setStyle({ fillOpacity: 0.12, opacity: 0.5, fillColor: "#ff3b30" });
+          } else {
+            window.selectedMunicipios.push(feature);
+            layer.setStyle({ fillOpacity: 0.55, opacity: 0.9, fillColor: "#00e676" });
+          }
+          console.log("Selected Array Status:", window.selectedMunicipios);
+        });
+      }
+    }).addTo(map);
+
+    // R2からデータをフェッチ
+    try {
+      const fgbUrl = "https://r2.dev";
+      const response = await fetch(fgbUrl);
+      if (!response.ok) throw new Error("R2 connection failed");
+
+      for await (const feature of flatgeobuf.deserialize(response.body)) {
+        fgbGeojsonLayer.addData(feature);
+      }
+      console.log(`[GESAT FGB] Success! Total polygons loaded: ${allMunicipiosData.length}`);
+    } catch (error) {
+      console.error("[GESAT FGB] Fetch error:", error);
+    }
+
+    // 検索入力窓
+    txtSearch.addEventListener("input", function() {
+      const query = txtSearch.value.trim().toLowerCase();
+      dropdown.innerHTML = "";
+
+      if (!query) { dropdown.classList.add("hidden"); return; }
+
+      const matches = allMunicipiosData.filter(function(item) {
+        const mName = (item.feature.properties.MUN_NAME || "").toLowerCase();
+        const dName = (item.feature.properties.DEP_NAME || "").toLowerCase();
+        return mName.includes(query) || dName.includes(query);
+      }).slice(0, 10);
+
+      if (matches.length === 0) { dropdown.classList.add("hidden"); return; }
+
+      matches.forEach(function(item) {
+        const props = item.feature.properties;
+        const div = document.createElement("div");
+        div.className = "search-item";
+        div.innerHTML = `<strong>${props.MUN_NAME}</strong> <span style="font-size:10px; color:#666;">(${props.DEP_NAME})</span>`;
+        
+        div.addEventListener("click", function() {
+          txtSearch.value = props.MUN_NAME;
+          dropdown.classList.add("hidden");
+
+          const bounds = item.layer.getBounds();
+          map.flyToBounds(bounds, { padding:, duration: 1.2 });
+
+          item.layer.setStyle({ color: "#ffd400", weight: 4.5, opacity: 1.0 });
+          
+          setTimeout(function() {
+            if (isSelectMode) {
+              const isSelected = window.selectedMunicipios.some(function(f) {
+                return f.properties.MUN_CODE === props.MUN_CODE;
+              });
+              item.layer.setStyle(isSelected ? 
+                { color: "#ff3b30", fillColor: "#00e676", fillOpacity: 0.55, opacity: 0.9, weight: 1.5 } : 
+                { color: "#ff3b30", fillColor: "#ff3b30", fillOpacity: 0.12, opacity: 0.5, weight: 1.5 }
+              );
+            } else {
+              item.layer.setStyle({ color: "#ff3b30", fillOpacity: 0, opacity: 0, weight: 1.5 });
+            }
+          }, 2500);
+        });
+        dropdown.appendChild(div);
+      });
+      dropdown.classList.remove("hidden");
+    });
+
+    document.addEventListener("click", function(e) {
+      if (e.target !== txtSearch) dropdown.classList.add("hidden");
+    });
+  };
+})();
+
