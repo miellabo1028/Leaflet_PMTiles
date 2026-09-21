@@ -12,6 +12,10 @@ function addGesatLayerControl(map, layers, visibility) {
     L.DomEvent.disableClickPropagation(container);
     L.DomEvent.disableScrollPropagation(container);
 
+    // 【重要：追加】 コントロールパネル内でのあらゆるマウス・キーボード操作が、地図側に奪われるのを100%防ぐ
+    L.DomEvent.on(container, 'click dblclick keydown keypress', L.DomEvent.stopPropagation);
+    container.style.pointerEvents = "auto"; 
+    
     container.innerHTML = `
       <div class="gesat-title">Map layers</div>
 
