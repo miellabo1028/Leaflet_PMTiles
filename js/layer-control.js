@@ -98,7 +98,7 @@ function addGesatLayerControl(map, layers, visibility) {
         <label>
           <input type="checkbox" data-admin-boundary="distrito">
           <span class="swatch dist"></span>
-          Distrito boundary
+          Municipios boundary
         </label>
       </div>
 
@@ -125,7 +125,7 @@ function addGesatLayerControl(map, layers, visibility) {
         <label>
           <input type="checkbox" data-admin-name="distritoName">
           <span class="name-swatch">Aa</span>
-          Distrito name
+          Municipios name
         </label>
       </div>
     `;
