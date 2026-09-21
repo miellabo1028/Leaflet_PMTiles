@@ -16,6 +16,19 @@ function addGesatLayerControl(map, layers, visibility) {
       <div class="gesat-title">Map layers</div>
 
       <!-- ================================================== -->
+      <!-- 【新規追加】Municipio選択・検索用セクション -->
+      <!-- ================================================== -->
+      <div class="gesat-section" style="margin-top: 5px;">Interactive Analysis</div>
+      <div class="gesat-children" style="margin-left: 0; padding: 0 4px;">
+        <button id="btn-select-mode" class="gesat-btn btn-inactive">Select Municipios: OFF</button>
+        
+        <div class="gesat-search-container">
+          <input type="text" id="txt-municipio-search" class="gesat-search-input" placeholder="Search Municipality..." autocomplete="off">
+          <div id="search-results-dropdown" class="search-dropdown hidden"></div>
+        </div>
+      </div>
+      
+      <!-- ================================================== -->
       <!-- Sentinel-2 コントロールUI -->
       <!-- ================================================== -->
       <div class="gesat-section">Sentinel-2 Imagery (COG)</div>
@@ -318,6 +331,15 @@ function addGesatLayerControl(map, layers, visibility) {
       "administrativeNames"
     );
 
+    // ==================================================
+    // 【新規追加】UI要素初期化後に、ロジック制御関数をキック
+    // ==================================================
+    setTimeout(function() {
+      if (window.linkGesatInteractiveLogic) {
+        window.linkGesatInteractiveLogic(map);
+      }
+    }, 50);
+    
     return container;
   };
 
