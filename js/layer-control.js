@@ -534,25 +534,44 @@ window.selectedMunicipios = [];
         if (!fgbUrl) {
           throw new Error("FlatGeobuf URL is not defined in GESAT_CONFIG.");
         }
-        
+
         const response = await fetch(fgbUrl);
         if (!response.ok) throw new Error("R2 storage HTTP error: " + response.status);
 
-        // ライブラリの仕様に合わせて flatgeobuf.geojson.deserialize に修正
-        const deserializeFn = (typeof flatgeobuf.geojson !== "undefined") 
-          ? flatgeobuf.geojson.deserialize 
-          : flatgeobuf.deserialize;
+        // 💡【対策】どのライブラリ形式でも動くように厳密に判定
+        let deserializeFn = null;
+        if (typeof flatgeobuf !== "undefined") {
+          if (flatgeobuf.geojson && typeof flatgeobuf.geojson.deserialize === "function") {
+            deserializeFn = flatgeobuf.geojson.deserialize;
+          } else if (typeof flatgeobuf.deserialize === "function") {
+            deserializeFn = flatgeobuf.deserialize;
+          }
+        }
 
-        // 流し込みながら、styleファンクションが自動で現在のボタン状態に合わせた見た目を作ります
-        const iterator = deserializeFn(response.body);
+        if (!deserializeFn) {
+          throw new Error("Flatgeobuf library (deserialize function) is not loaded correctly on this page.");
+        }
+
+        // 💡【対策】streamで止まる現象を防ぐため、一度アレイバッファに変換して確実にパースする
+        const buffer = await response.arrayBuffer();
+        const uint8Array = new Uint8Array(buffer);
+        
+        // 全件を一括、またはイテレータで安全に展開
+        const iterator = deserializeFn(uint8Array);
+        
+        let loadedCount = 0;
         for await (const feature of iterator) {
           fgbGeojsonLayer.addData(feature);
+          loadedCount++;
         }
-        console.log(`[GESAT FGB] Success! Total polygons loaded: ${allMunicipiosData.length}`);
+        
+        console.log(`[GESAT FGB] Success! Total polygons loaded: ${loadedCount}, Array size: ${allMunicipiosData.length}`);
       } catch (error) {
-        console.error("[GESAT FGB] Fetch error:", error);
+        console.error("[GESAT FGB] Fetch error details:", error);
+        alert("FGBデータの読み込み中にエラーが発生しました。\n詳細は開発者ツールのコンソールを確認してください。");
       }
     })();
+
 
   };
 })();
