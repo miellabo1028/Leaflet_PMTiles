@@ -354,7 +354,7 @@ function addGesatLayerControl(map, layers, visibility) {
 // === layer-control.js の一番最後（ } のすぐ下）に追記する完全コード ===
 
 // =========================================================================
-// 後から追記したFGB用拡張ロジック（エラー隔離・防御型完全版）
+// 後から追記したFGB用拡張ロジック（境界表示連動 ＆ カラーカスタム版）
 // =========================================================================
 window.selectedMunicipios = []; 
 
@@ -362,6 +362,13 @@ window.selectedMunicipios = [];
   let isSelectMode = false;
   let fgbGeojsonLayer = null;
   const allMunicipiosData = [];
+
+  // 💡【カラーカスタマイズ設定】ここで境界線の色や太さを自由に変更できます
+  const STYLES = {
+    hidden: { color: "#ff3b30", weight: 1.5, fillOpacity: 0, opacity: 0 }, // モードOFF（完全透明）
+    baseModeOn: { color: "#ff3b30", weight: 1.5, fillColor: "#ff3b30", fillOpacity: 0.05, opacity: 0.6 }, // モードON（未選択：薄い赤）
+    selected: { color: "#00e676", weight: 3.0, fillColor: "#00e676", fillOpacity: 0.4, opacity: 1.0 }  // 選択中（太い鮮やかな緑）
+  };
 
   console.log("[GESAT FGB] Interactive Module Embedded in Layer Control.");
 
@@ -381,28 +388,43 @@ window.selectedMunicipios = [];
     if (!map.getPane("fgbSelectionPane")) {
       map.createPane("fgbSelectionPane");
       map.getPane("fgbSelectionPane").style.zIndex = "550";
-      map.getPane("fgbSelectionPane").style.pointerEvents = "none";
+      // 💡【重要】pointerEventsを"auto"にするか、レイヤー側で制御するためnoneを解除します
+      map.getPane("fgbSelectionPane").style.pointerEvents = "auto";
     }
 
     // -----------------------------------------------------------------
-    // 処理1: トグルボタンのイベント登録 (最優先で実行)
+    // 処理1: トグルボタンのイベント登録（ONになった瞬間に境界を表示）
     // -----------------------------------------------------------------
     btnSelectMode.addEventListener("click", function() {
       isSelectMode = !isSelectMode;
       console.log("[GESAT FGB] Select Mode:", isSelectMode);
+      
       if (isSelectMode) {
         btnSelectMode.textContent = "Select Municipios: ON";
         btnSelectMode.className = "gesat-btn btn-active";
-        if (fgbGeojsonLayer) fgbGeojsonLayer.setStyle({ fillOpacity: 0.12, opacity: 0.5 });
-      } else {
-        btnSelectMode.textContent = "Select Municipios: OFF";
-        btnSelectMode.className = "gesat-btn btn-inactive";
+        
+        // 💡【新機能】ONになった瞬間に、全ポリゴンを「クリック可能な薄い赤の境界」として表示
         if (fgbGeojsonLayer) {
           fgbGeojsonLayer.eachLayer(function(layer) {
             const isSelected = window.selectedMunicipios.some(function(f) {
               return f.properties.MUN_CODE === layer.feature.properties.MUN_CODE;
             });
-            if (!isSelected) layer.setStyle({ fillOpacity: 0, opacity: 0 });
+            // すでに選択済みのものは緑、それ以外は薄い赤の枠線を表示
+            layer.setStyle(isSelected ? STYLES.selected : STYLES.baseModeOn);
+          });
+        }
+      } else {
+        btnSelectMode.textContent = "Select Municipios: OFF";
+        btnSelectMode.className = "gesat-btn btn-inactive";
+        
+        // モードOFFの時は、選択されていないポリゴンを完全に非表示（透明）にする
+        if (fgbGeojsonLayer) {
+          fgbGeojsonLayer.eachLayer(function(layer) {
+            const isSelected = window.selectedMunicipios.some(function(f) {
+              return f.properties.MUN_CODE === layer.feature.properties.MUN_CODE;
+            });
+            // 選択済みのものは地図上に残し、未選択のものは見えなくする
+            layer.setStyle(isSelected ? STYLES.selected : STYLES.hidden);
           });
         }
       }
@@ -413,9 +435,9 @@ window.selectedMunicipios = [];
     // -----------------------------------------------------------------
     fgbGeojsonLayer = L.geoJSON(null, {
       pane: "fgbSelectionPane",
-      interactive: true,
+      interactive: true, // クリック可能にする
       style: function() {
-        return { color: "#ff3b30", weight: 1.5, fillInverse: false, fillOpacity: 0, opacity: 0, fillColor: "#ff3b30" };
+        return STYLES.hidden; // 初期状態はすべて非表示
       },
       onEachFeature: function(feature, layer) {
         allMunicipiosData.push({ feature: feature, layer: layer });
@@ -424,19 +446,26 @@ window.selectedMunicipios = [];
           sticky: true, direction: "auto"
         });
 
-        layer.on("click", function() {
-          if (!isSelectMode) return;
+        // 💡【重要】ポリゴンクリック時の選択・解除と色変更
+        layer.on("click", function(e) {
+          if (!isSelectMode) return; // モードOFFなら無視
+          
+          // Leafletのイベントが背後の地図クリックへ連鎖するのを防ぐ
+          L.DomEvent.stopPropagation(e);
+
           const props = feature.properties;
           const index = window.selectedMunicipios.findIndex(function(f) {
             return f.properties.MUN_CODE === props.MUN_CODE;
           });
 
           if (index > -1) {
+            // 選択解除：配列から消して、通常の「モードON時の薄赤」に戻す
             window.selectedMunicipios.splice(index, 1);
-            layer.setStyle({ fillOpacity: 0.12, opacity: 0.5, fillColor: "#ff3b30" });
+            layer.setStyle(STYLES.baseModeOn);
           } else {
+            // 新規選択：配列に追加して、「太い緑」に変更
             window.selectedMunicipios.push(feature);
-            layer.setStyle({ fillOpacity: 0.55, opacity: 0.9, fillColor: "#00e676" });
+            layer.setStyle(STYLES.selected);
           }
           console.log("Selected Array Status:", window.selectedMunicipios);
         });
@@ -444,7 +473,7 @@ window.selectedMunicipios = [];
     }).addTo(map);
 
     // -----------------------------------------------------------------
-    // 処理3: 検索入力窓のイベント登録 (通信エラーの影響を受けない位置に配置)
+    // 処理3: 検索入力窓のイベント登録
     // -----------------------------------------------------------------
     txtSearch.addEventListener("input", function() {
       const query = txtSearch.value.trim().toLowerCase();
@@ -466,26 +495,27 @@ window.selectedMunicipios = [];
         div.className = "search-item";
         div.innerHTML = `<strong>${props.MUN_NAME}</strong> <span style="font-size:10px; color:#666;">(${props.DEP_NAME})</span>`;
         
-        div.addEventListener("click", function() {
+        div.addEventListener("click", function(e) {
+          L.DomEvent.stopPropagation(e);
           txtSearch.value = props.MUN_NAME;
           dropdown.classList.add("hidden");
 
           const bounds = item.layer.getBounds();
           map.flyToBounds(bounds, { padding:[20, 20], duration: 1.2 });
 
-          item.layer.setStyle({ color: "#ffd400", weight: 4.5, opacity: 1.0 });
+          // 検索ヒット時は一時的に「黄色」に発光させる
+          item.layer.setStyle({ color: "#ffd400", weight: 5.0, opacity: 1.0, fillOpacity: 0.3 });
           
           setTimeout(function() {
-            if (isSelectMode) {
-              const isSelected = window.selectedMunicipios.some(function(f) {
-                return f.properties.MUN_CODE === props.MUN_CODE;
-              });
-              item.layer.setStyle(isSelected ? 
-                { color: "#ff3b30", fillColor: "#00e676", fillOpacity: 0.55, opacity: 0.9, weight: 1.5 } : 
-                { color: "#ff3b30", fillColor: "#ff3b30", fillOpacity: 0.12, opacity: 0.5, weight: 1.5 }
-              );
+            // 発光終了後、現在の状態（選択中か、単なるモードONか、モードOFFか）に合わせてスタイル復元
+            const isSelected = window.selectedMunicipios.some(function(f) {
+              return f.properties.MUN_CODE === props.MUN_CODE;
+            });
+            
+            if (isSelected) {
+              item.layer.setStyle(STYLES.selected);
             } else {
-              item.layer.setStyle({ color: "#ff3b30", fillOpacity: 0, opacity: 0, weight: 1.5 });
+              item.layer.setStyle(isSelectMode ? STYLES.baseModeOn : STYLES.hidden);
             }
           }, 2500);
         });
@@ -499,7 +529,7 @@ window.selectedMunicipios = [];
     });
 
     // -----------------------------------------------------------------
-    // 処理4: 最末尾でCloudflare R2からデータを非同期フェッチ (完全に独立)
+    // 処理4: Cloudflare R2からデータを非同期フェッチ
     // -----------------------------------------------------------------
     console.log("[GESAT FGB] Starting FlatGeobuf fetch sequence...");
     (async function fetchFgbData() {
@@ -514,7 +544,7 @@ window.selectedMunicipios = [];
         }
         console.log(`[GESAT FGB] Success! Total polygons loaded: ${allMunicipiosData.length}`);
       } catch (error) {
-        console.error("[GESAT FGB] CRITICAL CRASH during FGB fetch, but UI events are saved:", error);
+        console.error("[GESAT FGB] Fetch error:", error);
       }
     })();
 
