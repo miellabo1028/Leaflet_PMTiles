@@ -364,7 +364,7 @@ window.selectedMunicipios = [];
 
   // 【カラー定義】検証用に少し目立つ色（未選択はハッキリしたオレンジ）に設定しています
   const STYLES = {
-    hidden: { color: "#ff3b30", weight: 0, fillOpacity: 0, opacity: 0, interactive: false }, 
+    hidden: { color: "#ff3b30", weight: 0, fillOpacity: 0, opacity: 0, interactive: true }, 
     baseModeOn: { color: "#ff6d00", weight: 2.0, fillColor: "#ff6d00", fillOpacity: 0.1, opacity: 0.8, interactive: true }, 
     selected: { color: "#00e676", weight: 3.5, fillColor: "#00e676", fillOpacity: 0.5, opacity: 1.0, interactive: true }  
   };
@@ -425,6 +425,11 @@ window.selectedMunicipios = [];
     // -----------------------------------------------------------------
     // 処理2: レイヤーの初期化（流し込み時点の動的スタイル判定）
     // -----------------------------------------------------------------
+    // 💡 他のどんなベクトルタイル（adminBoundaries等）よりも手前に来るよう、map-init.jsで定義された一番上のペイン（例: departamentoNamePane = 620）よりさらに上に設定します
+    if (map.getPane("fgbSelectionPane")) {
+      map.getPane("fgbSelectionPane").style.zIndex = "800"; // 一番手前に引き上げる
+    }
+
     fgbGeojsonLayer = L.geoJSON(null, {
       pane: "fgbSelectionPane",
       // 💡【重要】追加される瞬間に、現在のモードに応じて最初から正しい色を塗る
@@ -438,14 +443,20 @@ window.selectedMunicipios = [];
       onEachFeature: function(feature, layer) {
         allMunicipiosData.push({ feature: feature, layer: layer });
 
-        // ツールチップ設定
-        layer.bindTooltip(`<strong>${feature.properties.MUN_NAME}</strong><br><small>${feature.properties.DEP_NAME}</small>`, {
-          sticky: true, direction: "auto"
-        });
+        // 💡 ツールチップも、選択モードがONのときだけ表示されるようにラッパーを作ると親切です
+        layer.bindTooltip(function() {
+          if (!isSelectMode) return null; // モードOFFならツールチップを出さない
+          return `<strong>${feature.properties.MUN_NAME}</strong><br><small>${feature.properties.DEP_NAME}</small>`;
+        }, { sticky: true, direction: "auto" });
+
 
         // ポリゴン個別のクリックイベント
         layer.on("click", function(e) {
-          if (!isSelectMode) return; 
+          // 💡 モードOFFのときは、クリックを無視して地図の標準挙動（パンなど）にイベントを流す
+          if (!isSelectMode) {
+            return; 
+          }
+
           
           // 地図のピン留めやドラッグにイベントを横取りさせない
           L.DomEvent.stopPropagation(e);
