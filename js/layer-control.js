@@ -389,7 +389,7 @@ window.selectedMunicipios = [];
       map.getPane("fgbSelectionPane").style.zIndex = "550";
     }
     // ペイン自体はマウスを邪魔しないように設定
-    map.getPane("fgbSelectionPane").style.pointerEvents = "none";
+    map.getPane("fgbSelectionPane").style.pointerEvents = "auto";
 
     // -----------------------------------------------------------------
     // 処理1: トグルボタンのイベント（スタイルの一括再適用）
@@ -530,12 +530,21 @@ window.selectedMunicipios = [];
     console.log("[GESAT FGB] Starting FlatGeobuf fetch sequence...");
     (async function fetchFgbData() {
       try {
-        const fgbUrl = "https://r2.dev";
+        const fgbUrl = GESAT_CONFIG.data.boliviaMunicipiosFgb;
+        if (!fgbUrl) {
+          throw new Error("FlatGeobuf URL is not defined in GESAT_CONFIG.");
+        }
+        
         const response = await fetch(fgbUrl);
         if (!response.ok) throw new Error("R2 storage HTTP error: " + response.status);
 
+        // ライブラリの仕様に合わせて flatgeobuf.geojson.deserialize に修正
+        const deserializeFn = (typeof flatgeobuf.geojson !== "undefined") 
+          ? flatgeobuf.geojson.deserialize 
+          : flatgeobuf.deserialize;
+
         // 流し込みながら、styleファンクションが自動で現在のボタン状態に合わせた見た目を作ります
-        const iterator = flatgeobuf.deserialize(response.body);
+        const iterator = deserializeFn(response.body);
         for await (const feature of iterator) {
           fgbGeojsonLayer.addData(feature);
         }
