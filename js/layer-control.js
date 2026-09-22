@@ -20,15 +20,15 @@ function addGesatLayerControl(map, layers, visibility) {
       <div class="gesat-title">Map layers</div>
 
       <!-- ================================================== -->
-      <!-- 【Add】Selection and search by Municipio -->
+      <!-- 【Add】Selection and search by Municipio 2026/9/22 updated-->
       <!-- ================================================== -->
       <div class="gesat-section" style="margin-top: 5px;">Interactive Analysis</div>
       <div class="gesat-children" style="margin-left: 0; padding: 0 4px;">
         <!-- レイアウト崩れを防ぐため、ボタンを横並びにするラッパー（フレックスボックス）を追加 -->
-        <div style="display: flex; gap: 4px; margin-bottom: 6px;">
-          <button id="btn-select-mode" class="gesat-btn btn-inactive" style="flex: 1;">Select Municipios: OFF</button>
+        <div style="display: flex; gap: 4px; margin-bottom: 6px; width: 100%;">
+          <button id="btn-select-mode" class="gesat-btn btn-inactive" style="flex: 3; font-size: 11px; padding: 4px 4px; white-space: nowrap;">Select Municipios: OFF</button>
           <!-- ★Add clear button. 選択解除ボタンを新規追加 -->
-          <button id="btn-clear-selection" class="gesat-btn" style="background-color: #757575; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Clear</button>
+          <button id="btn-clear-selection" class="gesat-btn" style="flex: 1; background-color: #757575; color: white; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: center;">Clear</button>
         </div>
         
         <div class="gesat-search-container">
