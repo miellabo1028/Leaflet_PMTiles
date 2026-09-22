@@ -57,6 +57,15 @@ window.selectedMunicipios = [];
           <div style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
             <div style="font-weight: bold; font-size: 11px; margin-bottom: 6px; color: #333;">Satellite Imagery Fetcher</div>
             
+            <!-- Select satellite platform: 衛星（プラットフォーム）の種類選択 -->
+            <div style="margin-bottom: 6px;">
+              <label style="font-size: 10px; display: block; color: #666;">Satellite Platform</label>
+              <select id="sel-satellite-type" style="width: 100%; font-size: 11px; padding: 2px;">
+                <option value="sentinel-2">Sentinel-2 (Copernicus)</option>
+                <option value="landsat">Landsat 8/9 (USGS)</option>
+              </select>
+            </div>
+
             <!-- Select image type: 画像タイプ選択（RGB / 各種インデックス） -->
             <div style="margin-bottom: 6px;">
               <label style="font-size: 10px; display: block; color: #666;">Visualization Style</label>
@@ -65,7 +74,7 @@ window.selectedMunicipios = [];
                 <option value="ndvi">NDVI (Vegetation)</option>
                 <option value="ndwi">NDWI (Water)</option>
                 <option value="ndmi">NDMI (Moisture)</option>
-                <option value="savi">SAVI (Solid-Adjusted)</option>
+                <option value="savi">SAVI (Solid-Adjusted Vegetation)</option>
                 <option value="nbri">NBRI (Burn Ratio)</option>
               </select>
             </div>
@@ -119,11 +128,53 @@ window.selectedMunicipios = [];
     const dropdown = document.getElementById("search-results-dropdown");
     const btnClearSelection = document.getElementById("btn-clear-selection");
 
+    // パラメータ用UI要素の取得
+    const sldCloud = document.getElementById("sld-cloud-limit");
+    const lblCloud = document.getElementById("lbl-cloud-value");
+    const btnFetchSatellite = document.getElementById("btn-fetch-satellite");
+
     if (!btnSelectMode || !txtSearch || !dropdown || !btnClearSelection) {
       console.error("[GESAT FGB] UI Elements missing inside interactive panel!");
       return;
     }
 
+    // ★ 雲量スライダーの数値をリアルタイムにラベルへ連動させるイベント
+    if (sldCloud && lblCloud) {
+      sldCloud.addEventListener("input", function() {
+        lblCloud.textContent = sldCloud.value + "%";
+      });
+    }
+
+    // ★ 画像取得ボタンがクリックされた時のイベント（仮のログ出力）
+    if (btnFetchSatellite) {
+      btnFetchSatellite.addEventListener("click", function(e) {
+        L.DomEvent.stopPropagation(e);
+        
+        // 各パラメータの値を取得
+        const satellite = document.getElementById("sel-satellite-type").value;
+        const imgType = document.getElementById("sel-img-type").value;
+        const startDate = document.getElementById("date-start").value;
+        const endDate = document.getElementById("date-end").value;
+        const cloudLimit = sldCloud.value;
+
+        console.log("[STAC Fetch] Request Parameters:", {
+          satellite: satellite,
+          style: imgType,
+          start: startDate,
+          end: endDate,
+          cloudCoverMax: cloudLimit,
+          selectedAreasCount: window.selectedMunicipios.length
+        });
+
+        if (window.selectedMunicipios.length === 0) {
+          alert("No polygon is selected. Please select one or more municipalities or perform a search before proceeding.");
+          return;
+        }
+
+        alert(`Staring the image acquisition process for ${satellite} (please check the developer tools console).`);
+      });
+    }
+    
     // 選択解除（Clear）
     btnClearSelection.addEventListener("click", function(e) {
       L.DomEvent.stopPropagation(e);
