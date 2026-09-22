@@ -228,6 +228,11 @@ window.s2_2026_layer = null;
       visibility
     );
 
+    // ★2026/9/22 updated:【新設】機能（Interactive Analysis）の独立パネルをマップに追加
+    if (window.addGesatInteractiveControl) {
+      window.addGesatInteractiveControl(map);
+    }
+    
     L.control.scale({
       metric: true,
       imperial: false,
