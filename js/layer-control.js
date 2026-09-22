@@ -20,11 +20,16 @@ function addGesatLayerControl(map, layers, visibility) {
       <div class="gesat-title">Map layers</div>
 
       <!-- ================================================== -->
-      <!-- 【新規追加】Municipio選択・検索用セクション -->
+      <!-- 【Add】Selection and search by Municipio -->
       <!-- ================================================== -->
       <div class="gesat-section" style="margin-top: 5px;">Interactive Analysis</div>
       <div class="gesat-children" style="margin-left: 0; padding: 0 4px;">
-        <button id="btn-select-mode" class="gesat-btn btn-inactive">Select Municipios: OFF</button>
+        <!-- レイアウト崩れを防ぐため、ボタンを横並びにするラッパー（フレックスボックス）を追加 -->
+        <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+          <button id="btn-select-mode" class="gesat-btn btn-inactive" style="flex: 1;">Select Municipios: OFF</button>
+          <!-- ★Add clear button. 選択解除ボタンを新規追加 -->
+          <button id="btn-clear-selection" class="gesat-btn" style="background-color: #757575; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Clear</button>
+        </div>
         
         <div class="gesat-search-container">
           <input type="text" id="txt-municipio-search" class="gesat-search-input" placeholder="Search Municipality..." autocomplete="off">
@@ -33,7 +38,7 @@ function addGesatLayerControl(map, layers, visibility) {
       </div>
       
       <!-- ================================================== -->
-      <!-- Sentinel-2 コントロールUI -->
+      <!-- Sentinel-2 Control UI -->
       <!-- ================================================== -->
       <div class="gesat-section">Sentinel-2 Imagery (COG)</div>
 
@@ -377,7 +382,9 @@ window.selectedMunicipios = [];
     const btnSelectMode = document.getElementById("btn-select-mode");
     const txtSearch = document.getElementById("txt-municipio-search");
     const dropdown = document.getElementById("search-results-dropdown");
-
+    // ★2026/9/23 新設したClearボタン要素を取得
+    const btnClearSelection = document.getElementById("btn-clear-selection");
+    
     if (!btnSelectMode || !txtSearch || !dropdown) {
       console.error("[GESAT FGB] UI Elements missing inside control panel!");
       return;
@@ -391,6 +398,31 @@ window.selectedMunicipios = [];
     // ペイン自体はマウスを邪魔しないように設定
     map.getPane("fgbSelectionPane").style.pointerEvents = "auto";
 
+    // -----------------------------------------------------------------
+    // ★2026/9/22 追加処理: 選択解除（Clear）ボタンのクリックイベント
+    // -----------------------------------------------------------------
+    btnClearSelection.addEventListener("click", function(e) {
+      L.DomEvent.stopPropagation(e); // 地図へのイベント伝播を防ぐ
+      if (window.selectedMunicipios.length === 0) {
+        console.log("[GESAT FGB] No municipios are selected.");
+        return;
+      }
+      
+      console.log("[GESAT FGB] Clearing all selections. Count:", 
+        window.selectedMunicipios.length);
+      
+      // 1. グローバル配列を空にする
+      window.selectedMunicipios = [];
+      
+      // 2. マップ上の全レイヤーのスタイルを、現在の「選択モード」の状態に合わせてリセット
+      if (fgbGeojsonLayer) {
+        fgbGeojsonLayer.eachLayer(function(layer) {
+          // すべて未選択状態になるため、選択モードONならbaseModeOn、OFFならhiddenにする
+          layer.setStyle(isSelectMode ? STYLES.baseModeOn : STYLES.hidden);
+        });
+      }
+    });
+    
     // -----------------------------------------------------------------
     // 処理1: トグルボタンのイベント（スタイルの一括再適用）
     // -----------------------------------------------------------------
