@@ -31,7 +31,11 @@ window.selectedMunicipios = [];
       L.DomEvent.disableClickPropagation(container);
       L.DomEvent.disableScrollPropagation(container);
       L.DomEvent.on(container, 'click dblclick keydown keypress', L.DomEvent.stopPropagation);
+      
+      // 2026/9/22 updated: パネル自体からドロップダウンがはみ出るのを許可し、最前面に表示するスタイルを追加
       container.style.pointerEvents = "auto";
+      container.style.overflow = "visible"; // 👈 これにより、候補枠がパネルの下に隠れなくなります
+      container.style.position = "relative";
 
       // 機能ウィンドウ専用のHTML
       container.innerHTML = `
