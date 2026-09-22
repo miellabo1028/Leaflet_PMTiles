@@ -50,6 +50,51 @@ window.selectedMunicipios = [];
             <input type="text" id="txt-municipio-search" class="gesat-search-input" placeholder="Search Municipality..." autocomplete="off">
             <div id="search-results-dropdown" class="search-dropdown hidden"></div>
           </div>
+
+          <!-- ================================================== -->
+          <!-- 2026/9/22 added: Section on Satellite imagries throug STAC + TiTiler:【新規追加】衛星画像取得（STAC + TiTiler）セクション -->
+          <!-- ================================================== -->
+          <div style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+            <div style="font-weight: bold; font-size: 11px; margin-bottom: 6px; color: #333;">Satellite Imagery Fetcher</div>
+            
+            <!-- Select image type: 画像タイプ選択（RGB / 各種インデックス） -->
+            <div style="margin-bottom: 6px;">
+              <label style="font-size: 10px; display: block; color: #666;">Visualization Style</label>
+              <select id="sel-img-type" style="width: 100%; font-size: 11px; padding: 2px;">
+                <option value="rgb">True Color (RGB)</option>
+                <option value="ndvi">NDVI (Vegetation)</option>
+                <option value="ndwi">NDWI (Water)</option>
+                <option value="ndmi">NDMI (Moisture)</option>
+                <option value="savi">SAVI (Solid-Adjusted)</option>
+                <option value="nbri">NBRI (Burn Ratio)</option>
+              </select>
+            </div>
+
+            <!-- Set period: 期間設定（年または特定月範囲などの簡易指定） -->
+            <div style="margin-bottom: 6px; display: flex; gap: 4px;">
+              <div style="flex: 1;">
+                <label style="font-size: 10px; display: block; color: #666;">Start Date</label>
+                <input type="date" id="date-start" value="2026-01-01" style="width: 100%; font-size: 10px; padding: 2px;">
+              </div>
+              <div style="flex: 1;">
+                <label style="font-size: 10px; display: block; color: #666;">End Date</label>
+                <input type="date" id="date-end" value="2026-09-22" style="width: 100%; font-size: 10px; padding: 2px;">
+              </div>
+            </div>
+
+            <!-- Set Cloud ratio: 雲量制限の設定 -->
+            <div style="margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #666;">
+                <span>Max Cloud Cover</span>
+                <span id="lbl-cloud-value">20%</span>
+              </div>
+              <input type="range" id="sld-cloud-limit" min="0" max="100" value="20" style="width: 100%; margin: 2px 0;">
+            </div>
+
+            <!-- Add button of get imagery: 画像取得アクションボタン -->
+            <button id="btn-fetch-satellite" class="gesat-btn" style="width: 100%; background-color: #0288d1; color: white; border: none; padding: 6px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Fetch Satellite Image</button>
+          </div>
+         
         </div>
       `;
 
