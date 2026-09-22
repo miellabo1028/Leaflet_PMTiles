@@ -244,7 +244,8 @@ window.selectedMunicipios = [];
           console.log("[STAC] SAS Token Attached successfully.");
 
           // 6. ローカルの TiTiler (Docker) 用のタイルURLを組み立てる
-          const titilerBase = "http://localhost:8000/stac/tiles/{z}/{x}/{y}.png";
+          const titilerBase = "http://172.30.103.200:8000/stac/tiles/{z}/{x}/{y}.png";
+          // const titilerBase = "http://localhost:8000/stac/tiles/{z}/{x}/{y}.png";
           
           // 署名付きの自己参照URLを取得
           const selfLink = signedItem.links.find(l => l.rel === "self").href;
