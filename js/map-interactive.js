@@ -21,7 +21,7 @@ window.selectedMunicipios = [];
 
     // 2つ目のコントロールパネルを定義
     const interactiveControl = L.control({
-      position: "bottomright" // 👈 配置場所。レイヤ管理の下に並べたい場合は"topright"、別荘にしたい場合は"bottomright"や"topleft"など自由に調整可能です
+      position: "topright" // 👈 配置場所。レイヤ管理の下に並べたい場合は"topright"、別荘にしたい場合は"bottomright"や"topleft"など自由に調整可能です
     });
 
     interactiveControl.onAdd = function() {
