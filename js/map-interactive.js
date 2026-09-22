@@ -145,35 +145,130 @@ window.selectedMunicipios = [];
       });
     }
 
-    // ★ 画像取得ボタンがクリックされた時のイベント（仮のログ出力）
+    // 💡【追加】現在マップ上に表示している衛星画像レイヤーを保持する変数（重複防止用）
+    let currentSatelliteLayer = null;
+
+    // ★ 画像取得ボタンがクリックされた時のイベント（STAC検索 + TiTiler描画の実装）
     if (btnFetchSatellite) {
-      btnFetchSatellite.addEventListener("click", function(e) {
+      btnFetchSatellite.addEventListener("click", async function(e) {
         L.DomEvent.stopPropagation(e);
         
-        // 各パラメータの値を取得
+        // 1. 選択されたポリゴンがあるかチェック
+        if (window.selectedMunicipios.length === 0) {
+          alert("ポリゴンが選択されていません。市町村を1つ以上選択するか、検索してから実行してください。");
+          return;
+        }
+
+        // 2. パラメータの取得
         const satellite = document.getElementById("sel-satellite-type").value;
         const imgType = document.getElementById("sel-img-type").value;
         const startDate = document.getElementById("date-start").value;
         const endDate = document.getElementById("date-end").value;
-        const cloudLimit = sldCloud.value;
+        const cloudLimit = parseFloat(sldCloud.value);
 
-        console.log("[STAC Fetch] Request Parameters:", {
-          satellite: satellite,
-          style: imgType,
-          start: startDate,
-          end: endDate,
-          cloudCoverMax: cloudLimit,
-          selectedAreasCount: window.selectedMunicipios.length
-        });
+        // ボタンをローディング状態にする
+        btnFetchSatellite.disabled = true;
+        btnFetchSatellite.textContent = "Searching STAC...";
 
-        if (window.selectedMunicipios.length === 0) {
-          alert("No polygon is selected. Please select one or more municipalities or perform a search before proceeding.");
-          return;
+        try {
+          // 3. 選択されたポリゴン（複数対応）からGeoJSONの幾何形状（Geometry）を合成
+          // 簡易的に、選択された最初の市町村のGeometry（あるいはBBox）を利用します
+          const targetFeature = window.selectedMunicipios[0];
+          const geometry = targetFeature.geometry;
+
+          // 4. Microsoft Planetary Computer STAC API への検索リクエスト作成
+          const stacUrl = "https://microsoft.com";
+          
+          // 衛星の種類に応じてSTACのコレクションIDを切り替える
+          const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
+
+          const searchBody = {
+            "filter-lang": "cql2-json",
+            "filter": {
+              "op": "and",
+              "args": [
+                { "op": "==", "args": [{ "property": "collection" }, collectionId] },
+                { "op": "s_intersects", "args": [{ "property": "geometry" }, geometry] },
+                { "op": "anyinteracts", "args": [{ "property": "datetime" }, `${startDate}T00:00:00Z/${endDate}T23:59:59Z`] },
+                { "op": "<=", "args": [{ "property": "eo:cloud_cover" }, cloudLimit] }
+              ]
+            },
+            "sortby": [
+              { "field": "properties.eo:cloud_cover", "direction": "asc" } // 雲が少ない順にソート
+            ],
+            "limit": 1
+          };
+
+          console.log("[STAC] Fetching from Planetary Computer...", searchBody);
+
+          const response = await fetch(stacUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(searchBody)
+          });
+
+          if (!response.ok) throw new Error("STAC API server error: " + response.status);
+          const stacResult = await response.json();
+
+          if (!stacResult.features || stacResult.features.length === 0) {
+            alert("指定された条件（期間・雲量）に一致する衛星画像が Planetary Computer 上に見つかりませんでした。条件を緩めて再試行してください。");
+            return;
+          }
+
+          // 最も雲が少ない1件を取得
+          const bestItem = stacResult.features[0];
+          console.log("[STAC] Best Scene Found:", bestItem);
+
+          // 5. ローカルの TiTiler (Docker) 用のタイルURLを組み立てる
+          // 💡 TiTilerのSTACエンドポイント（/stac/tiles/...）を利用して動的レンダリングを行います
+          const titilerBase = "http://localhost:8000/stac/tiles/{z}/{x}/{y}.png";
+          
+          let tileUrl = "";
+          
+          if (imgType === "rgb") {
+            // True Color (RGB) のアセット割り当て (Sentinel-2なら B04,B03,B02)
+            const assets = (satellite === "sentinel-2") ? "assets=B04&assets=B03&assets=B02" : "assets=red&assets=green&assets=blue";
+            // データの輝度値をブラウザで見やすくするための自動ストレッチパラメータ (min/max rescale)
+            const rescale = (satellite === "sentinel-2") ? "rescale=0,3000" : "rescale=0,0.3";
+            
+            tileUrl = `${titilerBase}?url=${encodeURIComponent(bestItem.links.find(l => l.rel === "self").href)}&${assets}&${rescale}`;
+          } else {
+            // NDVI などのインデックス計算（TiTilerの expression 機能を利用）
+            // Sentinel-2: NIR=B08, Red=B04 / Landsat: NIR=nir08, Red=red
+            const nirBand = (satellite === "sentinel-2") ? "B08" : "nir08";
+            const redBand = (satellite === "sentinel-2") ? "B04" : "red";
+            const expr = `(typecast(${nirBand},'float32')-typecast(${redBand},'float32'))/(typecast(${nirBand},'float32')+typecast(${redBand},'float32'))`;
+            
+            // カラーマップに「viridis」を指定して、植物の濃淡を鮮やかに色分け
+            tileUrl = `${titilerBase}?url=${encodeURIComponent(bestItem.links.find(l => l.rel === "self").href)}&expression=${encodeURIComponent(expr)}&colormap_name=viridis&rescale=-1,1`;
+          }
+
+          // 6. すでに表示されている古い衛星レイヤーがあれば地図から削除
+          if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+            map.removeLayer(currentSatelliteLayer);
+          }
+
+          // 7. 新しい衛星タイルレイヤーをLeaflet地図に追加
+          // 💡 ベクトル境界の裏、背景地図の上に滑り込ませるため、事前に定義されている sentinelPane を指定します
+          currentSatelliteLayer = L.tileLayer(tileUrl, {
+            pane: "sentinelPane",
+            maxZoom: 19,
+            attribution: "Planetary Computer | TiTiler"
+          }).addTo(map);
+
+          console.log("[TiTiler] Dynamic Tile Layer successfully added to map.");
+
+        } catch (error) {
+          console.error("[STAC/TiTiler Error] Details:", error);
+          alert("衛星画像の取得・描画中にエラーが発生しました。\nローカルのDocker(TiTiler)が起動しているか確認してください。");
+        } finally {
+          // ボタンの状態を元に戻す
+          btnFetchSatellite.disabled = false;
+          btnFetchSatellite.textContent = "Fetch Satellite Image";
         }
-
-        alert(`Staring the image acquisition process for ${satellite} (please check the developer tools console).`);
       });
     }
+
     
     // 選択解除（Clear）
     btnClearSelection.addEventListener("click", function(e) {
