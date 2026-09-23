@@ -216,7 +216,7 @@ window.selectedMunicipios = [];
           // });
 
           // 4. Microsoft Planetary Computer STAC API への検索リクエスト作成（GET方式への変更）
-          const stacBaseUrl = "https://microsoft.com";
+          const stacBaseUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
           const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
 
           // GET用のクエリパラメータをURLSearchParamsで構築
