@@ -187,13 +187,19 @@ window.selectedMunicipios = [];
           }
 
           // 4. Microsoft Planetary Computer STAC API への検索リクエスト作成
-          const stacUrl = "https://planetarycomputer.microsoft.com/api/stac/v1";
+          const stacUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
           const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
+
+          // 💡 幾何データの構造を純粋なGeoJSONオブジェクトに整形して安全性を高める
+          const cleanGeometry = {
+            type: geometry.type,
+            coordinates: geometry.coordinates
+          };
 
           // 💡 標準的なSTAC APIで最も安定して動く intersects パラメータに構造を最適化
           const searchBody = {
             "collections": [collectionId],
-            "intersects": geometry, // 👈 幾何データをそのまま流し込み
+            "intersects": cleanGeometry, // 👈 整形した幾何データをセット
             "datetime": `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
             "query": { "eo:cloud_cover": { "lte": cloudLimit } },
             "sortby": [{ "field": "properties.eo:cloud_cover", "direction": "asc" }], // 雲が少ない順
@@ -202,6 +208,7 @@ window.selectedMunicipios = [];
 
           console.log("[STAC] Requesting to Planetary Computer...", searchBody);
 
+          // 送信処理
           const response = await fetch(stacUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
