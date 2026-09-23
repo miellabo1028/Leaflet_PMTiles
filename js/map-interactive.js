@@ -281,26 +281,44 @@ window.selectedMunicipios = [];
           console.log("[STAC] Best Scene Item Found:", bestItem);
 
           // <Direct version & Get version ?>
+          // 【確定版】CORS(405)を回避して安全にSASトークンを取得するプロセス
           // =================================================================
-          // 5. 【修正】Planetary Computerのデータアクセス用SASトークン（署名）の自動取得
+          // 5. old【修正】Planetary Computerのデータアクセス用SASトークン（署名）の自動取得
           // =================================================================
-          btnFetchSatellite.textContent = "Signing Data Access...";
+          btnFetchSatellite.textContent = "Acquiring Azure Storage Token...";
           // Docker version 5. 【超重要】Planetary Computerの画像URLを読み取るための「暗号署名（SASトークン）」をMicrosoftから取得する
           // 💡 これを行わないと、TiTiler側で画像を読み込む際に 403 Forbidden エラーになります。
-          const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
-          const signResponse = await fetch(signUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(bestItem) // アイテム丸ごと渡すと、中に含まれる全画像URLにアクセスキーを付与してくれます
-          });
+          // const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
+          // const signResponse = await fetch(signUrl, {
+          //  method: "POST",
+          //  headers: { "Content-Type": "application/json" },
+          //  body: JSON.stringify(bestItem) // アイテム丸ごと渡すと、中に含まれる全画像URLにアクセスキーを付与してくれます
+          // });
 
-          if (!signResponse.ok) {
-            throw new Error("衛星画像URLの利用許可証（SASトークン）の取得に失敗しました。");
+          // 💡 1. データの保管されているコンテナ名をコレクションIDから特定します
+          // Sentinel-2は「sentinel-2-l2a」、Landsatは「landsat-c2-l2」というストレージアカウント名になります
+          const storageAccount = (collectionId === "sentinel-2-l2a") ? "sentinel2euwest" : "landsatc2l2";
+          const containerName = collectionId;
+          
+          // 💡 2. 安全なGETメソッドで、このコンテナ専用のアクセス許可トークンを1通だけ要求します
+          // GETなので、ブラウザのOPTIONS（405エラー）に引っかからず瞬時に取得できます
+          const tokenApiUrl = `https://microsoft.com{storageAccount}/${containerName}`;
+        
+          const tokenResponse = await fetch(tokenApiUrl, { method: "GET" });
+          if (!tokenResponse.ok) {
+            throw new Error(`ストレージトークンの取得に失敗しました。Status: ${tokenResponse.status}`);
           }
+
+          const tokenData = await tokenResponse.json();
+          const sasToken = tokenData.token; // 👈 これがMicrosoftの鍵（トークン文字列）です
+
+          // if (!signResponse.ok) {
+          //  throw new Error("衛星画像URLの利用許可証（SASトークン）の取得に失敗しました。");
+          // }
   
           // 💡 2. 署名(SASトークン)が埋め込まれた新しいアイテムデータをパース
-          const signedItem = await signResponse.json();
-          console.log("[SAS Sign] Token attached successfully:", signedItem);
+          // const signedItem = await signResponse.json();
+          // console.log("[SAS Sign] Token attached successfully:", signedItem);
           // const signedItem = signResponse.json ? await signResponse.json() : await signResponse.json();
           // console.log("[STAC] SAS Token Attached successfully.");
 
@@ -407,9 +425,11 @@ window.selectedMunicipios = [];
         // const tileUrl = `${microsoftTileBase}?${params.toString()}`;
         // console.log("[Direct Tile Stream] Generated URL:", tileUrl);
         
-        // 💡 4. 【超重要】裏側のBlob Storage認証を通すため、アイテム全体の署名トークン(Query String)を結合
+        // 💡 4. 【超重要】組み立てたパラメータの最後に、取得したSASトークン（鍵）を合流させます
+        // これによりタイルサーバー内部での500(Internal Error)を完璧に防ぎます
+        // 💡 old 4. 【超重要】裏側のBlob Storage認証を通すため、アイテム全体の署名トークン(Query String)を結合
         // signedItem.links 内にあるプレ署名された認証情報をパラメータとして移植します
-        const tileUrl = `${microsoftTileBase}?${params.toString()}`;
+        const tileUrl = `${microsoftTileBase}?${params.toString()}&${sasToken}`;  
         console.log("[Direct Tile Stream] Authenticated URL:", tileUrl);
 
         // 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
