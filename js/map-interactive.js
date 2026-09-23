@@ -351,29 +351,29 @@ function setupPanelEvents(map) {
         // =============================================================
         btnFetchSatellite.textContent = "Checking STAC...";
         
-        const stacSearchBody = {
-          collections: [collectionId],
-          bbox: bbox,
-          datetime: datetimeRange,
-          query: {
-            "eo:cloud_cover": {
-              lte: cloudLimit
-            }
-          },
-          limit: 10
-        };
+        const stacSearchUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
+        const stacParams = new URLSearchParams();
         
-        const stacResponse = await fetch(
-          "https://planetarycomputer.microsoft.com/api/stac/v1/search",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/geo+json, application/json"
-            },
-            body: JSON.stringify(
-              stacSearchBody
-            )
+        stacParams.set("collections", collectionId);
+        stacParams.set("bbox", bbox.join(","));
+        stacParams.set("datetime", datetimeRange);
+        stacParams.set("limit", "10");
+        stacParams.set("query", JSON.stringify({
+          "eo:cloud_cover": {
+            lte: cloudLimit
+            }
+          })
+        );
+        
+        const finalStacSearchUrl = stacSearchUrl + "?" + stacParams.toString();
+        
+        console.log("[STAC Preview GET URL]", finalStacSearchUrl);
+        
+        const stacResponse = await fetch(finalStacSearchUrl, {
+          method: "GET",
+          headers: {
+            "Accept": "application/geo+json, application/json"
+            }
           }
         );
         
@@ -381,12 +381,14 @@ function setupPanelEvents(map) {
           const errorText = await stacResponse.text();
           console.error("[STAC Search Error]", {
             status: stacResponse.status,
-            body: errorText
+            statusText: stacResponse.statusText,
+            body: errorText,
+            url: finalStacSearchUrl
             }
           );
           throw new Error("STAC検索に失敗しました。" + ` HTTP ${stacResponse.status}`);
         }
-
+        
         const stacResult = await stacResponse.json();
         const previewItems = Array.isArray(stacResult.features) ? stacResult.features : [];
         console.log("[STAC Preview Result]", stacResult);
@@ -395,7 +397,7 @@ function setupPanelEvents(map) {
         if (previewItems.length === 0) {
           throw new Error("指定された期間、雲量、BBoxに該当する" + "衛星画像が見つかりませんでした。");
         }
- 
+        
         // デバッグ用
         window.debugStacItems = previewItems;
 
