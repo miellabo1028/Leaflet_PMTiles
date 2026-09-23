@@ -17,191 +17,818 @@ window.selectedMunicipios = [];
 
   // 💡【新設計】map-main.js から呼び出せるように初期化コントロール関数としてグローバル定義
   window.addGesatInteractiveControl = function(map) {
-    console.log("[GESAT FGB] Creating Interactive Control Panel...");
+  console.log("[GESAT FGB] Creating Interactive Control Panel...");
 
-    // 2つ目のコントロールパネルを定義
-    const interactiveControl = L.control({
-      position: "topright" // 👈 配置場所。レイヤ管理の下に並べたい場合は"topright"、別荘にしたい場合は"bottomright"や"topleft"など自由に調整可能です
-    });
+  // 2つ目のコントロールパネルを定義
+  const interactiveControl = L.control({
+    position: "topright" // 👈 配置場所。レイヤ管理の下に並べたい場合は"topright"、別荘にしたい場合は"bottomright"や"topleft"など自由に調整可能です
+  });
 
-    interactiveControl.onAdd = function() {
-      // 見た目の統一感を出すため、レイヤ管理と同じクラス名「gesat-control」を使用
-      const container = L.DomUtil.create("div", "gesat-control gesat-interactive-panel");
+  interactiveControl.onAdd = function() {
+  // 見た目の統一感を出すため、レイヤ管理と同じクラス名「gesat-control」を使用
+  const container = L.DomUtil.create("div", "gesat-control gesat-interactive-panel");
       
-      L.DomEvent.disableClickPropagation(container);
-      L.DomEvent.disableScrollPropagation(container);
-      L.DomEvent.on(container, 'click dblclick keydown keypress', L.DomEvent.stopPropagation);
+  L.DomEvent.disableClickPropagation(container);
+  L.DomEvent.disableScrollPropagation(container);
+  L.DomEvent.on(container, 'click dblclick keydown keypress', L.DomEvent.stopPropagation);
       
-      // 2026/9/22 updated: パネル自体からドロップダウンがはみ出るのを許可し、最前面に表示するスタイルを追加
-      container.style.pointerEvents = "auto";
-      container.style.overflow = "visible"; // 👈 これにより、候補枠がパネルの下に隠れなくなります
-      container.style.position = "relative";
+  // 2026/9/22 updated: パネル自体からドロップダウンがはみ出るのを許可し、最前面に表示するスタイルを追加
+  container.style.pointerEvents = "auto";
+  container.style.overflow = "visible"; // 👈 これにより、候補枠がパネルの下に隠れなくなります
+  container.style.position = "relative";
 
-      // 機能ウィンドウ専用のHTML
-      container.innerHTML = `
-        <div class="gesat-title">Interactive Analysis</div>
-        <div class="gesat-children" style="margin-left: 0; padding: 0 4px;">
-          <div style="display: flex; gap: 4px; margin-bottom: 6px; width: 100%;">
-            <button id="btn-select-mode" class="gesat-btn btn-inactive" style="flex: 3; font-size: 11px; padding: 4px 4px; white-space: nowrap;">Select Municipios: OFF</button>
-            <button id="btn-clear-selection" class="gesat-btn" style="flex: 1; background-color: #757575; color: white; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: center;">Clear</button>
-          </div>
+  // 機能ウィンドウ専用のHTML
+  container.innerHTML = `
+    <div class="gesat-title">Interactive Analysis</div>
+    <div class="gesat-children" style="margin-left: 0; padding: 0 4px;">
+    <div style="display: flex; gap: 4px; margin-bottom: 6px; width: 100%;">
+      <button id="btn-select-mode" class="gesat-btn btn-inactive" style="flex: 3; font-size: 11px; padding: 4px 4px; white-space: nowrap;">Select Municipios: OFF</button>
+      <button id="btn-clear-selection" class="gesat-btn" style="flex: 1; background-color: #757575; color: white; border: none; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: center;">Clear</button>
+    </div>
           
-          <div class="gesat-search-container">
-            <input type="text" id="txt-municipio-search" class="gesat-search-input" placeholder="Search Municipality..." autocomplete="off">
-            <div id="search-results-dropdown" class="search-dropdown hidden"></div>
-          </div>
+    <div class="gesat-search-container">
+      <input type="text" id="txt-municipio-search" class="gesat-search-input" placeholder="Search Municipality..." autocomplete="off">
+      <div id="search-results-dropdown" class="search-dropdown hidden"></div>
+    </div>
 
-          <!-- ================================================== -->
-          <!-- 2026/9/22 added: Section on Satellite imagries throug STAC + TiTiler:【新規追加】衛星画像取得（STAC + TiTiler）セクション -->
-          <!-- ================================================== -->
-          <div style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
-            <div style="font-weight: bold; font-size: 11px; margin-bottom: 6px; color: #333;">Satellite Imagery Fetcher</div>
+    <!-- ================================================== -->
+    <!-- 2026/9/22 added: Section on Satellite imagries throug STAC + TiTiler:【新規追加】衛星画像取得（STAC + TiTiler）セクション -->
+    <!-- ================================================== -->
+    <div style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+      <div style="font-weight: bold; font-size: 11px; margin-bottom: 6px; color: #333;">Satellite Imagery Fetcher</div>
             
-            <!-- Select satellite platform: 衛星（プラットフォーム）の種類選択 -->
-            <div style="margin-bottom: 6px;">
-              <label style="font-size: 10px; display: block; color: #666;">Satellite Platform</label>
-              <select id="sel-satellite-type" style="width: 100%; font-size: 11px; padding: 2px;">
-                <option value="sentinel-2">Sentinel-2 (Copernicus)</option>
-                <option value="landsat">Landsat 8/9 (USGS)</option>
-              </select>
-            </div>
+      <!-- Select satellite platform: 衛星（プラットフォーム）の種類選択 -->
+      <div style="margin-bottom: 6px;">
+        <label style="font-size: 10px; display: block; color: #666;">Satellite Platform</label>
+        <select id="sel-satellite-type" style="width: 100%; font-size: 11px; padding: 2px;">
+          <option value="sentinel-2">Sentinel-2 (Copernicus)</option>
+          <option value="landsat">Landsat 8/9 (USGS)</option>
+        </select>
+      </div>
 
-            <!-- Select image type: 画像タイプ選択（RGB / 各種インデックス） -->
-            <div style="margin-bottom: 6px;">
-              <label style="font-size: 10px; display: block; color: #666;">Visualization Style</label>
-              <select id="sel-img-type" style="width: 100%; font-size: 11px; padding: 2px;">
-                <option value="rgb">True Color (RGB)</option>
-                <option value="ndvi">NDVI (Vegetation)</option>
-                <option value="ndwi">NDWI (Water)</option>
-                <option value="ndmi">NDMI (Moisture)</option>
-                <option value="savi">SAVI (Solid-Adjusted Vegetation)</option>
-                <option value="nbri">NBRI (Burn Ratio)</option>
-              </select>
-            </div>
+      <!-- Select image type: 画像タイプ選択（RGB / 各種インデックス） -->
+      <div style="margin-bottom: 6px;">
+        <label style="font-size: 10px; display: block; color: #666;">Visualization Style</label>
+        <select id="sel-img-type" style="width: 100%; font-size: 11px; padding: 2px;">
+          <option value="rgb">True Color (RGB)</option>
+          <option value="ndvi">NDVI (Vegetation)</option>
+          <option value="ndwi">NDWI (Water)</option>
+          <option value="ndmi">NDMI (Moisture)</option>
+          <option value="savi">SAVI (Solid-Adjusted Vegetation)</option>
+          <option value="nbri">NBRI (Burn Ratio)</option>
+        </select>
+      </div>
 
-            <!-- Set period: 期間設定（年または特定月範囲などの簡易指定） -->
-            <div style="margin-bottom: 6px; display: flex; gap: 4px;">
-              <div style="flex: 1;">
-                <label style="font-size: 10px; display: block; color: #666;">Start Date</label>
-                <input type="date" id="date-start" value="2026-01-01" style="width: 100%; font-size: 10px; padding: 2px;">
-              </div>
-              <div style="flex: 1;">
-                <label style="font-size: 10px; display: block; color: #666;">End Date</label>
-                <input type="date" id="date-end" value="2026-09-22" style="width: 100%; font-size: 10px; padding: 2px;">
-              </div>
-            </div>
-
-            <!-- Set Cloud ratio: 雲量制限の設定 -->
-            <div style="margin-bottom: 8px;">
-              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #666;">
-                <span>Max Cloud Cover</span>
-                <span id="lbl-cloud-value">20%</span>
-              </div>
-              <input type="range" id="sld-cloud-limit" min="0" max="100" value="20" style="width: 100%; margin: 2px 0;">
-            </div>
-
-            <!-- Add button of get imagery: 画像取得アクションボタン -->
-            <button id="btn-fetch-satellite" class="gesat-btn" style="width: 100%; background-color: #0288d1; color: white; border: none; padding: 6px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Fetch Satellite Image</button>
-          </div>
-         
+      <!-- Set period: 期間設定（年または特定月範囲などの簡易指定） -->
+      <div style="margin-bottom: 6px; display: flex; gap: 4px;">
+        <div style="flex: 1;">
+          <label style="font-size: 10px; display: block; color: #666;">Start Date</label>
+          <input type="date" id="date-start" value="2026-01-01" style="width: 100%; font-size: 10px; padding: 2px;">
         </div>
-      `;
+        <div style="flex: 1;">
+          <label style="font-size: 10px; display: block; color: #666;">End Date</label>
+          <input type="date" id="date-end" value="2026-09-22" style="width: 100%; font-size: 10px; padding: 2px;">
+        </div>
+      </div>
 
-      // パネル内の要素に対してイベントを設定する処理（HTML生成の直後に行う必要があります）
-      setTimeout(() => {
-        setupPanelEvents(map);
-      }, 10);
+      <!-- Set Cloud ratio: 雲量制限の設定 -->
+      <div style="margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #666;">
+          <span>Max Cloud Cover</span>
+          <span id="lbl-cloud-value">20%</span>
+        </div>
+        <input type="range" id="sld-cloud-limit" min="0" max="100" value="20" style="width: 100%; margin: 2px 0;">
+      </div>
 
-      return container;
-    };
+      <!-- Add button of get imagery: 画像取得アクションボタン -->
+      <button id="btn-fetch-satellite" class="gesat-btn" style="width: 100%; background-color: #0288d1; color: white; border: none; padding: 6px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Fetch Satellite Image</button>
+    </div>
+         
+  </div>
+`;
 
-    interactiveControl.addTo(map);
+// パネル内の要素に対してイベントを設定する処理（HTML生成の直後に行う必要があります）
+setTimeout(() => {
+  setupPanelEvents(map);
+}, 10);
 
-    // バックグラウンドでのFlatGeobufデータ読み込み処理をキック
-    initFgbLayer(map);
-  };
+return container;
+};
 
-  // 内部関数: パネル内のボタンや検索窓のイベント登録
-  function setupPanelEvents(map) {
-    const btnSelectMode = document.getElementById("btn-select-mode");
-    const txtSearch = document.getElementById("txt-municipio-search");
-    const dropdown = document.getElementById("search-results-dropdown");
-    const btnClearSelection = document.getElementById("btn-clear-selection");
+interactiveControl.addTo(map);
 
-    // パラメータ用UI要素の取得
-    const sldCloud = document.getElementById("sld-cloud-limit");
-    const lblCloud = document.getElementById("lbl-cloud-value");
-    const btnFetchSatellite = document.getElementById("btn-fetch-satellite");
+// バックグラウンドでのFlatGeobufデータ読み込み処理をキック
+initFgbLayer(map);
+};
 
-    if (!btnSelectMode || !txtSearch || !dropdown || !btnClearSelection) {
-      console.error("[GESAT FGB] UI Elements missing inside interactive panel!");
-      return;
+// 内部関数: パネル内のボタンや検索窓のイベント登録
+function setupPanelEvents(map) {
+  const btnSelectMode = document.getElementById("btn-select-mode");
+  const txtSearch = document.getElementById("txt-municipio-search");
+  const dropdown = document.getElementById("search-results-dropdown");
+  const btnClearSelection = document.getElementById("btn-clear-selection");
+
+  // パラメータ用UI要素の取得
+  const sldCloud = document.getElementById("sld-cloud-limit");
+  const lblCloud = document.getElementById("lbl-cloud-value");
+  const btnFetchSatellite = document.getElementById("btn-fetch-satellite");
+
+  if (!btnSelectMode || !txtSearch || !dropdown || !btnClearSelection) {
+    console.error("[GESAT FGB] UI Elements missing inside interactive panel!");
+    return;
+  }
+
+  // ★ 雲量スライダーの数値をリアルタイムにラベルへ連動させるイベント
+  if (sldCloud && lblCloud) {
+    sldCloud.addEventListener("input", function() {
+      lblCloud.textContent = sldCloud.value + "%";
+    });
+  }
+
+  // 💡 現在マップ上に表示している衛星画像レイヤーを保持する変数（重複防止用）
+  let currentSatelliteLayer = null;
+
+  // =====================================================================
+  // 衛星画像取得
+  // BBox検索 + Planetary Computer Mosaic + BBoxクリッピング版
+  // =====================================================================
+  if (btnFetchSatellite) {
+    // 現在のクリッピング更新関数
+    et currentClipUpdateHandler = null;
+
+    // -------------------------------------------------------------------
+    // 選択中の全Municipioを包含するBBoxを取得
+    // -------------------------------------------------------------------
+    function getSelectedMunicipioBbox() {
+      if (!window.selectedMunicipios || window.selectedMunicipios.length === 0) {
+        throw new Error("Municipioが選択されていません。");
+      }
+
+      const features = window.selectedMunicipios.map(
+        function(selectedItem) {
+          // 通常のGeoJSON Feature
+          if (selectedItem && selectedItem.type === "Feature" && selectedItem.geometry) {
+            return selectedItem;
+          }
+          // Leaflet Layerなどに格納されたFeature
+          if (selectedItem && selectedItem.feature && selectedItem.feature.type === "Feature" && selectedItem.feature.geometry) {
+            return selectedItem.feature;
+          }
+          // geometryだけを持つ場合
+          if (selectedItem && selectedItem.geometry) {
+            return {
+              type: "Feature",
+              properties: selectedItem.properties || {},
+              geometry: selectedItem.geometry
+            };
+          }
+
+          throw new Error("選択されたMunicipioに有効なGeoJSON Geometryがありません。");
+        }
+      );
+
+      const featureCollection = {
+        type: "FeatureCollection",
+        features: features
+      };
+      const temporaryLayer = L.geoJSON(featureCollection);
+      const bounds = temporaryLayer.getBounds();
+      
+      if (!bounds.isValid()) {
+        throw new Error("選択されたMunicipioからBBoxを計算できませんでした。");
+      }
+      
+      const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+      
+      return {
+        bbox: bbox,
+        leafletBounds: L.latLngBounds([bbox[1], bbox[0]], [bbox[3], bbox[2]])
+      };
     }
-
-    // ★ 雲量スライダーの数値をリアルタイムにラベルへ連動させるイベント
-    if (sldCloud && lblCloud) {
-      sldCloud.addEventListener("input", function() {
-        lblCloud.textContent = sldCloud.value + "%";
-      });
-    }
-
-    // 💡 現在マップ上に表示している衛星画像レイヤーを保持する変数（重複防止用）
-    let currentSatelliteLayer = null;
-
-    // ★ 画像取得ボタンがクリックされた時のイベント（STAC検索 + 署名 + TiTiler描画 修正版）
-    if (btnFetchSatellite) {
-      btnFetchSatellite.addEventListener("click", async function(e) {
-        L.DomEvent.stopPropagation(e);
-        
-        // 1. 選択されたポリゴンがあるかチェック
-        if (!window.selectedMunicipios || window.selectedMunicipios.length === 0) {
-          alert("ポリゴンが選択されていません。市町村を1つ以上選択するか、検索してから実行してください。");
+  
+    // -------------------------------------------------------------------
+    // BBoxに合わせてTileLayerを画面上でクリップ
+    //
+    // Leafletのboundsだけでは、BBoxと交差する端のタイルがBBox外へ
+    // はみ出して表示されることがあります。
+    //
+    // clip-pathを使って、表示上も矩形範囲へ切り抜きます。
+    // -------------------------------------------------------------------
+    function applyBboxClipToLayer(map, tileLayer, leafletBounds) {
+      // 前回登録したイベントを解除
+      if (currentClipUpdateHandler) {
+        map.off("move zoom viewreset resize", currentClipUpdateHandler);
+       currentClipUpdateHandler = null;
+      }
+      
+      function updateClip() {
+        if (!tileLayer || !map.hasLayer(tileLayer)) {
           return;
         }
+        const container = tileLayer.getContainer();
+        if (!container) {
+          return;
+        }
+        
+        const mapSize = map.getSize();
+        const northwest = map.latLngToContainerPoint(leafletBounds.getNorthWest());
+        const southeast = map.latLngToContainerPoint(leafletBounds.getSouthEast());
 
-        // 2. 画面上のパラメータを取得
-        const satellite = document.getElementById("sel-satellite-type").value;
-        const imgType = document.getElementById("sel-img-type").value;
-        const startDate = document.getElementById("date-start").value;
-        const endDate = document.getElementById("date-end").value;
-        const cloudLimit = parseFloat(sldCloud.value);
+        // マップ画面内の座標へ制限
+        const left = Math.max(0, Math.min(mapSize.x, northwest.x));
+        const top = Math.max(0, Math.min(mapSize.y, northwest.y));
+        const right = Math.max(0, Math.min(mapSize.x, southeast.x));
+        const bottom = Math.max(0, Math.min(mapSize.y, southeast.y));
+        
+        /*
+         * CSS clip-path: inset(top right bottom left)
+         *
+         * right側とbottom側は、画面端からの距離へ変換する。
+         */
+        const insetTop = Math.max(0, top);
+        const insetRight = Math.max(0, mapSize.x - right);
+        const insetBottom = Math.max(0, mapSize.y - bottom);
+        const insetLeft = Math.max(0, left);
+        
+        container.style.clipPath =`inset(${insetTop}px ` + `${insetRight}px ` + `${insetBottom}px ` + `${insetLeft}px)`;
+        container.style.webkitClipPath = container.style.clipPath;
+      }
 
-        // ボタンをローディング状態にする
-        btnFetchSatellite.disabled = true;
-        btnFetchSatellite.textContent = "Searching STAC...";
+      currentClipUpdateHandler = updateClip;
 
-        try {
-          // 3. 【修正】選択された最初の市町村ポリゴンから正しい幾何構造（Geometry）を抽出
-          const targetFeature = window.selectedMunicipios[0];
+      map.on("move zoom viewreset resize", currentClipUpdateHandler);
+      tileLayer.on("load", updateClip);
+      // レイヤー追加直後にも実行
+      requestAnimationFrame(updateClip);
+    }
+    
+    // -------------------------------------------------------------------
+    // モザイク登録レスポンスからsearchidを取得
+    // -------------------------------------------------------------------
+    function getMosaicSearchId(
+      registrationResult
+    ) {
+      if (!registrationResult) {
+        return null;
+      }
+      return (registrationResult.searchid || registrationResult.search_id || registrationResult.id || null);
+    }
+    
+    // -------------------------------------------------------------------
+    // モザイク登録レスポンスからTileJSONリンクを取得
+    // -------------------------------------------------------------------
+    function getMosaicTileJsonLink(
+      registrationResult
+    ) {
+      if (!registrationResult ||　!Array.isArray(registrationResult.links)) {
+        return null;
+      }
+      const tileJsonLink =　registrationResult.links.find(function(link) {
+          return link.rel === "tilejson";
+          }
+        );
+      return tileJsonLink
+        ? tileJsonLink.href
+        : null;
+    }
+    
+    // ===================================================================
+    // Fetch Satellite Image
+    // ===================================================================
+    btnFetchSatellite.addEventListener("click", async function(e) {
+      L.DomEvent.stopPropagation(e);
+      
+      if (!window.selectedMunicipios || window.selectedMunicipios.length === 0) {
+        alert("Municipioが選択されていません。\n" + "Municipioを1つ以上選択してから実行してください。");
+        return;
+      }
+      
+      const satelliteElement = document.getElementById("sel-satellite-type");
+      const imageTypeElement = document.getElementById("sel-img-type");
+      const startDateElement = document.getElementById("date-start");
+      const endDateElement = document.getElementById("date-end");
+      
+      if (!satelliteElement || !imageTypeElement || !startDateElement || !endDateElement || !sldCloud) {
+        alert("衛星画像取得用のUI要素を読み取れませんでした。");
+        return;
+      }
+      
+      const satellite = satelliteElement.value;
+      const imgType = imageTypeElement.value;
+      const startDate = startDateElement.value;
+      const endDate = endDateElement.value;
+      const cloudLimit = Number.parseFloat(sldCloud.value);
+      
+      if (!startDate || !endDate) {
+        alert("開始日と終了日を指定してください。");
+       return;
+      }
+      
+      if (startDate > endDate) {
+        alert("開始日は終了日以前の日付を指定してください。");
+        return;
+      }
+      
+      if (!Number.isFinite(cloudLimit)) {
+        alert("雲量の設定値が不正です。");
+        return;
+      }
+
+      btnFetchSatellite.disabled = true;
+      btnFetchSatellite.textContent = "Preparing BBox...";
+      
+      try {
+        // =============================================================
+        // 1. 選択Municipio全体を包含するBBox
+        // =============================================================
+        const selectedExtent = getSelectedMunicipioBbox();
+        const bbox = selectedExtent.bbox;
+        const leafletBboxBounds = selectedExtent.leafletBounds;
+        
+        console.log("[Selected Municipio Count]", window.selectedMunicipios.length);
+        console.log("[Selected BBox]", bbox);
+        
+        // =============================================================
+        // 2. Collection
+        // =============================================================
+        const collectionId = satellite === "sentinel-2" ? "sentinel-2-l2a" : "landsat-c2-l2";
+        const datetimeRange = `${startDate}T00:00:00Z/` + `${endDate}T23:59:59Z`;
+        
+        console.log("[Collection]", collectionId);
+        console.log("[Datetime]", datetimeRange);
+        
+        // =============================================================
+        // 3. 画像が存在するかSTAC検索で事前確認
+        //
+        // モザイク登録の前に、検索結果0件を分かりやすく判定する。
+        // =============================================================
+        btnFetchSatellite.textContent = "Checking STAC...";
+        
+        const stacSearchBody = {
+          collections: [collectionId],
+          bbox: bbox,
+          datetime: datetimeRange,
+          query: {
+            "eo:cloud_cover": {
+              lte: cloudLimit
+            }
+          },
+          limit: 10
+        };
+        
+        const stacResponse = await fetch(
+          "https://planetarycomputer.microsoft.com/api/stac/v1/search",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/geo+json, application/json"
+            },
+            body: JSON.stringify(
+              stacSearchBody
+            )
+          }
+        );
+        
+        if (!stacResponse.ok) {
+          const errorText = await stacResponse.text();
+          console.error("[STAC Search Error]", {
+            status: stacResponse.status,
+            body: errorText
+            }
+          );
+          throw new Error("STAC検索に失敗しました。" + ` HTTP ${stacResponse.status}`);
+        }
+
+        const stacResult = await stacResponse.json();
+        const previewItems = Array.isArray(stacResult.features) ? stacResult.features : [];
+        console.log("[STAC Preview Result]", stacResult);
+        console.log("[STAC Preview Item Count]", previewItems.length);
+        
+        if (previewItems.length === 0) {
+          throw new Error("指定された期間、雲量、BBoxに該当する" + "衛星画像が見つかりませんでした。");
+        }
+ 
+        // デバッグ用
+        window.debugStacItems = previewItems;
+
+        // =============================================================
+        // 4. モザイク検索登録
+        //
+        // searchidを取得し、複数シーンを仮想モザイク化する。
+        // =============================================================
+        btnFetchSatellite.textContent = "Registering Mosaic...";
+        const mosaicRegisterUrl = "https://planetarycomputer.microsoft.com/" + "api/data/v1/mosaic/register";
+        
+        const mosaicSearchBody = {
+          collections: [collectionId],
+          bbox: bbox,
+          datetime: datetimeRange,
+          query: {
+            "eo:cloud_cover": {
+              lte: cloudLimit
+              }
+            },
           
-          // FlatGeobufのデータ構造にあわせ、要素がfeature単体かgeojsonのlayerオブジェクトか判定して安全に取得
-          let geometry = null;
-          if (targetFeature.geometry) {
-            geometry = targetFeature.geometry;
-          } else if (targetFeature.feature && targetFeature.feature.geometry) {
-            geometry = targetFeature.feature.geometry;
-          }
+          /*
+           * 雲量の少ない画像を優先。
+           * 同程度なら新しい画像を優先。
+           */
+          sortby: [
+            {
+              field: "properties.eo:cloud_cover",
+              direction: "asc"
+            },
+            {
+              field: "properties.datetime",
+              direction: "desc"
+            }
+          ]
+        };
+        
+        console.log("[Mosaic Register URL]", mosaicRegisterUrl);
+        console.log("[Mosaic Register Body]", mosaicSearchBody);
+        
+        const mosaicRegisterResponse =
+          await fetch(
+            mosaicRegisterUrl,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              body: JSON.stringify(mosaicSearchBody)
+            }
+        );
+        
+        if (!mosaicRegisterResponse.ok) {
+          const errorText = await mosaicRegisterResponse.text();
+          console.error("[Mosaic Register Error]",
+            {
+              status: mosaicRegisterResponse.status,
+              statusText: mosaicRegisterResponse.statusText,
+              response: errorText
+            }
+          );
+          throw new Error("モザイク検索の登録に失敗しました。" + ` HTTP ${mosaicRegisterResponse.status}`);
+        }
+        
+        const mosaicRegistration = await mosaicRegisterResponse.json();
+        console.log("[Mosaic Registration]", mosaicRegistration);
+        
+        const searchId = getMosaicSearchId(mosaicRegistration);
+        if (!searchId) {
+          throw new Error("モザイク登録は完了しましたが、" + "searchidを取得できませんでした。");
+        }
+        
+        console.log("[Mosaic Search ID]", searchId);
+        
+        // Consoleから確認できるように保存
+        window.debugMosaicRegistration = mosaicRegistration;
+        window.debugMosaicSearchId = searchId;
+        
+        // =============================================================
+        // 5. モザイク表示パラメータ
+        // =============================================================
+        btnFetchSatellite.textContent = "Generating Mosaic Tiles...";
+        const mosaicParams = new URLSearchParams();
 
-          if (!geometry) {
-            throw new Error("選択された市町村ポリゴンから幾何データ（Geometry）を読み取れませんでした。");
-          }
+        // PNGタイル
+        mosaicParams.set("tile_format", "png");
+        
+        // -------------------------------------------------------------
+        // RGB
+        // -------------------------------------------------------------
+         if (imgType === "rgb") {
+           if (satellite === "sentinel-2") {
+             mosaicParams.append("assets", "B04");
+             mosaicParams.append("assets", "B03");
+             mosaicParams.append("assets", "B02");
+             mosaicParams.append("rescale", "0,4000");
+             mosaicParams.append("rescale", "0,4000");
+             mosaicParams.append("rescale", "0,4000");
+           } else {
+             mosaicParams.append("assets", "red");
+             mosaicParams.append("assets", "green");
+             mosaicParams.append("assets", "blue");
+             mosaicParams.append("rescale", "7000,18000");
+             mosaicParams.append("rescale", "7000,18000");
+             mosaicParams.append("rescale", "7000,18000");
+             mosaicParams.set("color_formula", "Gamma RGB 1.5 Saturation 1.1");
+           }
+        // -------------------------------------------------------------
+        // NDVI、NDWI、NDMI、SAVI、NBRI
+        // -------------------------------------------------------------
+        } else {
+           let indexAssets = [];
+           let expression = "";
+           if (satellite === "sentinel-2") {
+             switch (imgType) {
+               case "ndvi":
+                 indexAssets = ["B08", "B04"];
+                 expression = "(B08-B04)/(B08+B04)";
+                 break;
+               case "ndwi":
+                 indexAssets = ["B03", "B08"];
+                 expression = "(B03-B08)/(B03+B08)";
+                 break;
+               case "ndmi":
+                 indexAssets = ["B08", "B11"];
+                 expression = "(B08-B11)/(B08+B11)";
+                 break;
+               case "savi":
+                 indexAssets = ["B08", "B04"];
+                 expression = "1.5*(B08-B04)" + "/(B08+B04+5000)";
+                 break;
+               case "nbri":
+                 indexAssets = ["B08", "B12"];
+                 expression = "(B08-B12)/(B08+B12)";
+                 break;
+               default:
+                 throw new Error("未対応のSentinel-2画像タイプです: " + imgType);
+           }
+        } else {
+             switch (imgType) {
+               case "ndvi":
+                 indexAssets = ["nir08", "red"];
+                 expression = "(nir08-red)/(nir08+red)"; 
+                 break;
+               case "ndwi":
+                 indexAssets = ["green", "nir08"];
+                 expression = "(green-nir08)/(green+nir08)";
+                 break;
+               case "ndmi":
+                 indexAssets = ["nir08", "swir16"];
+                 expression = "(nir08-swir16)" + "/(nir08+swir16)";
+                 break;
+               case "savi":
+                 indexAssets = ["nir08", "red"];
+                 expression = "1.5*(nir08-red)" + "/(nir08+red+0.5)";
+                 break;
+               case "nbri":
+                 indexAssets = ["nir08", "swir22"];
+                 expression = "(nir08-swir22)" + "/(nir08+swir22)";
+                 break;
+               default:
+                 throw new Error("未対応のLandsat画像タイプです: " + imgType);
+             }
+           }
 
-          // 💡<GET version> 【414エラー対策】複雑なポリゴンの代わりに、Leafletの機能を使って軽量なBBox（[西, 南, 東, 北]）を計算
-          // 複雑な座標配列をすべてURLに入れないことで、文字数オーバーを完璧に防ぎます。
-          let bbox = null;
-          try {
-            // geometryから一時的にLeafletのGeoJSONレイヤーを作成して四隅の座標を取得
-            const tempLayer = L.geoJSON(geometry);
-            const bounds = tempLayer.getBounds();
-            const west = bounds.getWest();
-            const south = bounds.getSouth();
-            const east = bounds.getEast();
-            const north = bounds.getNorth();
-            bbox = [west, south, east, north]; // STAC標準の[minX, minY, maxX, maxY]フォーマット
-          } catch (e) {
-            console.error("BBoxの計算に失敗しました:", e);
-            throw new Error("幾何データから範囲（BBox）を計算できませんでした。");
+           indexAssets.forEach(function(assetName) {
+              mosaicParams.append("assets",assetName);
+           });
+
+           mosaicParams.set("asset_as_band", "true");
+           mosaicParams.set("expression", expression);
+           mosaicParams.set("colormap_name", "viridis");
+           mosaicParams.set("rescale", "-1,1");
+           
+           console.log("[Mosaic Index Assets]",indexAssets);
+           console.log("[Mosaic Expression]", expression);
+        }
+        
+        // =============================================================
+        // 6. モザイクTileJSON URL
+        // =============================================================
+        /*
+         * 登録レスポンスにTileJSONリンクがある場合でも、
+         * 表示パラメータを付加するため、searchidからURLを構築する。
+         */
+        const responseTileJsonLink = getMosaicTileJsonLink(mosaicRegistration);
+        console.log("[Mosaic Response TileJSON Link]", responseTileJsonLink);
+        const mosaicTileJsonUrl =
+          "https://planetarycomputer.microsoft.com/"
+          + "api/data/v1/mosaic/"
+          + `${encodeURIComponent(searchId)}/`
+          + "WebMercatorQuad/tilejson.json?"
+          + mosaicParams.toString();
+        console.log("[Mosaic TileJSON URL]", mosaicTileJsonUrl);
+        
+        window.debugMosaicTileJsonUrl = mosaicTileJsonUrl;
+        const mosaicTileJsonResponse = await fetch(mosaicTileJsonUrl,
+          {
+            method: "GET",
+            headers: {
+              "Accept":"application/json"
+            }
+        });
+        
+        if (!mosaicTileJsonResponse.ok) {
+          const errorText = await mosaicTileJsonResponse.text();
+          console.error("[Mosaic TileJSON Error]",
+            {
+              status: mosaicTileJsonResponse.status,
+              statusText: mosaicTileJsonResponse.statusText,
+              response: errorText,
+              url: mosaicTileJsonUrl
+            }
+          );
+         throw new Error("モザイクTileJSONの取得に失敗しました。" + ` HTTP ${mosaicTileJsonResponse.status}`);
+        }
+        
+        const mosaicTileJson = await mosaicTileJsonResponse.json();
+        console.log("[Mosaic TileJSON]", mosaicTileJson);
+        if (!Array.isArray(mosaicTileJson.tiles) || mosaicTileJson.tiles.length === 0) {
+          throw new Error("モザイクTileJSONにtiles配列がありません。");
+        }
+        
+        const mosaicTileUrl = mosaicTileJson.tiles[0];
+        console.log("[Mosaic Tile URL]", mosaicTileUrl);
+        window.debugMosaicTileUrl = mosaicTileUrl;
+        
+        // =============================================================
+        // 7. 古い衛星レイヤーを削除
+        // =============================================================
+        if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+          map.removeLayer(currentSatelliteLayer);
+        }
+        currentSatelliteLayer = null;
+        
+        // 前のクリッピングイベントを解除
+        if (currentClipUpdateHandler) {
+          map.off("move zoom viewreset resize", currentClipUpdateHandler);
+          currentClipUpdateHandler = null;
+        }
+        
+        // =============================================================
+        // 8. 衛星画像Pane
+        // =============================================================
+        if (!map.getPane("sentinelPane")) {
+          map.createPane("sentinelPane");
+          map.getPane("sentinelPane").style.zIndex = "450";
+        }
+        
+        // =============================================================
+        // 9. Leafletモザイクレイヤー
+        // =============================================================
+        btnFetchSatellite.textContent = "Rendering Mosaic...";
+        currentSatelliteLayer = L.tileLayer(mosaicTileUrl,
+          {
+            pane: "sentinelPane",
+            minZoom: mosaicTileJson.minzoom || 1,
+            maxZoom: mosaicTileJson.maxzoom || 22,
+            opacity: 1.0,
+ 
+            /*
+             * BBoxと交差しないタイルを要求しない。
+             * 端のタイルがBBox外へはみ出す部分は、
+             * 後段のCSS clip-pathで除去する。
+             */
+            bounds: leafletBboxBounds,
+            noWrap: true,
+            keepBu  ffer: 2,
+            updateWhenIdle: false,
+            updateWhenZooming: false,
+            attribution: "© Microsoft Planetary Computer"
           }
+        );
+        
+        let loadedTileCount = 0;
+        let failedTileCount = 0;
+        let successMessageShown = false;
+        
+        currentSatelliteLayer.on("tileload", function(tileEvent) {
+          loadedTileCount += 1;
+          if (loadedTileCount === 1) {
+            console.log("[Mosaic First Tile Loaded]", tileEvent.coords);
+          }
+ 
+        /*
+         *  TileJSON取得だけではなく、
+         * 実際の画像タイルが1枚以上読み込まれてから
+         * 成功と表示する。
+         */
+          if (!successMessageShown) {
+            successMessageShown = true;
+            btnFetchSatellite.textContent = "Fetch Satellite Image";
+            alert("BBoxモザイク画像を表示しました。\n\n" + `読込方式: ${satellite}\n` + `表示タイプ: ${imgType}\n` + `検索範囲: BBox\n` + `選択Municipio数: ` + window.selectedMunicipios.length);
+            }
+          }
+        );
+        
+        currentSatelliteLayer.on("tileerror", function(tileEvent) {
+          failedTileCount += 1;
+          console.error("[Mosaic Tile Error]", {
+            coords: tileEvent.coords,
+            error: tileEvent.error,
+            tile: tileEvent.tile,
+            failedTileCount: failedTileCount,
+            url: mosaicTileUrl
+          });
+        });
+        
+        currentSatelliteLayer.on("loading", function() {
+          console.log("[Mosaic Layer Loading]");
+        });
+        
+        currentSatelliteLayer.on("load", function() {
+          console.log("[Mosaic Layer Load Complete]",
+          {
+            loadedTileCount: loadedTileCount,
+            failedTileCount: failedTileCount
+          });
+        });
+        
+        currentSatelliteLayer.addTo(map);
+        
+        // =============================================================
+        // 10. BBoxで画面上のタイルを切り抜く
+        // =============================================================
+        applyBboxClipToLayer(map, currentSatelliteLayer, leafletBboxBounds);
+        
+        // =============================================================
+        // 11. BBoxへ移動
+        // =============================================================
+        map.fitBounds(leafletBboxBounds, { padding: [20, 20], animate: true, duration: 1.2 });
+
+        // =============================================================
+        // 12. サイズ再計算
+        // =============================================================
+        setTimeout(function() {
+          map.invalidateSize();
+          if (currentClipUpdateHandler) {
+            currentClipUpdateHandler();
+          }},
+          500
+        );
+        
+        console.log("[Mosaic Rendering Initiated]", {
+          bbox: bbox,
+          searchId: searchId,
+          collection: collectionId,
+          satellite: satellite,
+          imageType: imgType
+        });
+        
+      } catch (error) {
+        console.error("[BBox Mosaic Error]", error);
+        alert("BBoxモザイク処理中にエラーが発生しました。\n\n" + error.message);
+      
+      } finally {
+        btnFetchSatellite.disabled = false;
+        if (btnFetchSatellite.textContent !== "Fetch Satellite Image") {
+          btnFetchSatellite.textContent ="Fetch Satellite Image";
+        }
+      }
+    }
+  );
+}
+    
+  // Single version: ★ 画像取得ボタンがクリックされた時のイベント（STAC検索 + 署名 + TiTiler描画 修正版）
+  // if (btnFetchSatellite) {
+  //  btnFetchSatellite.addEventListener("click", async function(e) {
+  //    L.DomEvent.stopPropagation(e);
+        
+      // 1. 選択されたポリゴンがあるかチェック
+   //   if (!window.selectedMunicipios || window.selectedMunicipios.length === 0) {
+   //     alert("ポリゴンが選択されていません。市町村を1つ以上選択するか、検索してから実行してください。");
+   //     return;
+   //   }
+
+      // 2. 画面上のパラメータを取得
+   //   const satellite = document.getElementById("sel-satellite-type").value;
+   //   const imgType = document.getElementById("sel-img-type").value;
+   //   const startDate = document.getElementById("date-start").value;
+   //   const endDate = document.getElementById("date-end").value;
+   //   const cloudLimit = parseFloat(sldCloud.value);
+
+      // ボタンをローディング状態にする
+    //  btnFetchSatellite.disabled = true;
+    //  btnFetchSatellite.textContent = "Searching STAC...";
+
+    //  try {
+        // 3. 【修正】選択された最初の市町村ポリゴンから正しい幾何構造（Geometry）を抽出
+        //const targetFeature = window.selectedMunicipios[0];
+          
+        // FlatGeobufのデータ構造にあわせ、要素がfeature単体かgeojsonのlayerオブジェクトか判定して安全に取得
+        //let geometry = null;
+        //if (targetFeature.geometry) {
+          //geometry = targetFeature.geometry;
+        //} else if (targetFeature.feature && targetFeature.feature.geometry) {
+          //geometry = targetFeature.feature.geometry;
+        //}
+
+        //if (!geometry) {
+          //throw new Error("選択された市町村ポリゴンから幾何データ（Geometry）を読み取れませんでした。");
+        //}
+
+        // 💡<GET version> 【414エラー対策】複雑なポリゴンの代わりに、Leafletの機能を使って軽量なBBox（[西, 南, 東, 北]）を計算
+        // 複雑な座標配列をすべてURLに入れないことで、文字数オーバーを完璧に防ぎます。
+        //let bbox = null;
+        //try {
+          // geometryから一時的にLeafletのGeoJSONレイヤーを作成して四隅の座標を取得
+          //const tempLayer = L.geoJSON(geometry);
+          //const bounds = tempLayer.getBounds();
+          //const west = bounds.getWest();
+          //const south = bounds.getSouth();
+          //const east = bounds.getEast();
+          //const north = bounds.getNorth();
+          //bbox = [west, south, east, north]; // STAC標準の[minX, minY, maxX, maxY]フォーマット
+        //} catch (e) {
+          //console.error("BBoxの計算に失敗しました:", e);
+          //throw new Error("幾何データから範囲（BBox）を計算できませんでした。");
+        //}
           
           // <POST version >4. Microsoft Planetary Computer STAC API への検索リクエスト作成
           // const stacUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
@@ -233,36 +860,36 @@ window.selectedMunicipios = [];
           // });
 
           // 4. Microsoft Planetary Computer STAC API への検索リクエスト作成（GET方式への変更）
-          const stacBaseUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
-          const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
+          // const stacBaseUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
+          // const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
 
           // GET用のクエリパラメータをURLSearchParamsで構築
-          const stacParams = new URLSearchParams({
-            "collections": collectionId,
-            "datetime": `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
-            "limit": 1
-          });
+          // const stacParams = new URLSearchParams({
+          //  "collections": collectionId,
+          //  "datetime": `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
+          //  "limit": 1
+          // });
 
           // 💡 注意：複雑な intersects（ポリゴン構造）は、GETでは文字列としてシリアライズして渡します
           // stacParams.set("intersects", JSON.stringify(geometry));
           // 💡 【重要】intersectsの代わりに、計算したコンパクトなbbox配列をカンマ区切りの文字列でセット
-          stacParams.set("bbox", bbox.join(","));
+          //stacParams.set("bbox", bbox.join(","));
 
           // 💡 雲量フィルターとソート（雲が少ない順）の条件を追加
-          stacParams.set("query", JSON.stringify({ "eo:cloud_cover": { "lte": cloudLimit } }));
+          //stacParams.set("query", JSON.stringify({ "eo:cloud_cover": { "lte": cloudLimit } }));
           // 一時コメントアウト
           // stacParams.set("sortby", JSON.stringify([{ "field": "properties.eo:cloud_cover", "direction": "asc" }]));
 
           // 最終的な検索URLの組み立て
-          const finalStacUrl = `${stacBaseUrl}?${stacParams.toString()}`;
-          console.log("[STAC GET Request] URL:", finalStacUrl);
+          //const finalStacUrl = `${stacBaseUrl}?${stacParams.toString()}`;
+          //console.log("[STAC GET Request] URL:", finalStacUrl);
 
           // GETメソッドで通信を実行（引数のオブジェクトを簡素化、または省略）
           // const response = await fetch(finalStacUrl, {
           //  method: "GET",
           //  headers: { "Accept": "application/json" }
           // });
-          const response = await fetch(finalStacUrl);
+          //const response = await fetch(finalStacUrl);
 
           // Docker version
           // if (!response.ok) {
@@ -271,25 +898,25 @@ window.selectedMunicipios = [];
 
           //  Direct version
           // if (!response.ok) throw new Error(`STAC API server error (HTTP ${response.status})`);
-          if (!response.ok) throw new Error(`STAC Search Error (${response.status})` );
+          //if (!response.ok) throw new Error(`STAC Search Error (${response.status})` );
           
-          const stacResult = await response.json();
-          console.log("[STAC Result]", stacResult);
+          //const stacResult = await response.json();
+          //console.log("[STAC Result]", stacResult);
 
-          if (!stacResult.features || stacResult.features.length === 0) {
-            throw new Error("指定された期間・雲量の条件に一致する衛星画像が、選択エリア内に見つかりませんでした。日付を広げるか、雲量制限を増やしてください。");
-          }
+          //if (!stacResult.features || stacResult.features.length === 0) {
+          //  throw new Error("指定された期間・雲量の条件に一致する衛星画像が、選択エリア内に見つかりませんでした。日付を広げるか、雲量制限を増やしてください。");
+          //}
 
           // 最も雲が少ない1件を取得
-          const bestItem = stacResult.features[0];
-          console.log("[STAC] Best Scene Item Found:", bestItem);
+          //const bestItem = stacResult.features[0];
+          //console.log("[STAC] Best Scene Item Found:", bestItem);
 
           // STAC Itemで利用可能なアセット名を取得
-          const availableAssets = Object.keys(bestItem.assets || {});
-          console.log("[Available Assets]", availableAssets);
+          //const availableAssets = Object.keys(bestItem.assets || {});
+          //console.log("[Available Assets]", availableAssets);
           // デバッグ用
-          window.debugBestItem = bestItem;
-          window.debugAvailableAssets = availableAssets;
+          //window.debugBestItem = bestItem;
+          //window.debugAvailableAssets = availableAssets;
 
           // <Direct version & Get version ?>
           // 【確定版】CORS(405)を回避して安全にSASトークンを取得するプロセス
@@ -382,12 +1009,12 @@ window.selectedMunicipios = [];
         // 5. 【最適化】ローカルDockerをバイパスし、Microsoft公式の動的タイル配信サービスを利用
         // 💡 これにより、ローカルでのDockerの起動不調や、社内LANのローカル通信ブロックを100%回避できます
           // 💡 3. タイル配信URLのパラメータ構築（signedItemを使用して認証を通します）
-          btnFetchSatellite.textContent = "Generating Tiles...";
+            //btnFetchSatellite.textContent = "Generating Tiles...";
 
-          let tileJsonUrl = "";
-          const tileJsonParams = new URLSearchParams();
-          tileJsonParams.set("collection", collectionId);
-          tileJsonParams.set("item", bestItem.id);
+            //let tileJsonUrl = "";
+            //const tileJsonParams = new URLSearchParams();
+            //tileJsonParams.set("collection", collectionId);
+            //tileJsonParams.set("item", bestItem.id);
           // RGB、NDVIなどで共通使用するURLパラメータ
           
           // const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x";
@@ -403,164 +1030,164 @@ window.selectedMunicipios = [];
           //  item: signedItem.id // 署名付きのID
          // });
           
-          // -----------------------------------------------------
-          // RGB
-          // -----------------------------------------------------
+            // -----------------------------------------------------
+            // RGB
+            // -----------------------------------------------------
           
-          if (imgType === "rgb") {
-            if (satellite === "sentinel-2") { 
-              // Sentinel-2 True Color
-              const rgbAssets = ["B04", "B03", "B02"];
-              const missingAssets = rgbAssets.filter(function(assetName) {
-                return !availableAssets.includes(assetName);
-              });
-              if (missingAssets.length > 0) {
-                throw new Error("Sentinel-2 RGB表示に必要なアセットがありません: " + missingAssets.join(", "));
-              }
-              rgbAssets.forEach(function(assetName) {
-                tileJsonParams.append("assets", assetName);
-              });
-              tileJsonParams.append("rescale", "0,4000");
-              tileJsonParams.append("rescale", "0,4000");
-              tileJsonParams.append("rescale", "0,4000");
-            } else { 
-              // Landsat Ture Color
-              const rgbAssets = ["red", "green", "blue"];
-              const missingAssets = rgbAssets.filter(function(assetName) {
-                return !availableAssets.includes(assetName);
-              });
-              if (missingAssets.length > 0) {
-                throw new Error("Landsat RGB表示に必要なアセットがありません: " + missingAssets.join(", "));
-              }
-              rgbAssets.forEach(function(assetName) {
-                tileJsonParams.append("assets", assetName);
-              });
-              tileJsonParams.append("rescale", "7000,18000");
-              tileJsonParams.append("rescale", "7000,18000");
-              tileJsonParams.append("rescale", "7000,18000");
+            //if (imgType === "rgb") {
+            //  if (satellite === "sentinel-2") { 
+                // Sentinel-2 True Color
+            //    const rgbAssets = ["B04", "B03", "B02"];
+            //    const missingAssets = rgbAssets.filter(function(assetName) {
+            //      return !availableAssets.includes(assetName);
+            //    });
+            //    if (missingAssets.length > 0) {
+            //      throw new Error("Sentinel-2 RGB表示に必要なアセットがありません: " + missingAssets.join(", "));
+            //    }
+            //    rgbAssets.forEach(function(assetName) {
+            //      tileJsonParams.append("assets", assetName);
+            //    });
+            //    tileJsonParams.append("rescale", "0,4000");
+            //    tileJsonParams.append("rescale", "0,4000");
+            //    tileJsonParams.append("rescale", "0,4000");
+            //  } else { 
+                // Landsat Ture Color
+            //    const rgbAssets = ["red", "green", "blue"];
+            //    const missingAssets = rgbAssets.filter(function(assetName) {
+            //      return !availableAssets.includes(assetName);
+            //    });
+            //    if (missingAssets.length > 0) {
+            //      throw new Error("Landsat RGB表示に必要なアセットがありません: " + missingAssets.join(", "));
+            //    }
+            //    rgbAssets.forEach(function(assetName) {
+            //      tileJsonParams.append("assets", assetName);
+            //    });
+            //    tileJsonParams.append("rescale", "7000,18000");
+            //    tileJsonParams.append("rescale", "7000,18000");
+            //    tileJsonParams.append("rescale", "7000,18000");
 
-              tileJsonParams.set("color_formula", "Gamma RGB 1.5 Saturation 1.1");
-            }
-            tileJsonParams.set("tile_format", "png");
-            tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/" + "WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
+            //    tileJsonParams.set("color_formula", "Gamma RGB 1.5 Saturation 1.1");
+            //  }
+            //  tileJsonParams.set("tile_format", "png");
+            //  tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/" + "WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
                       
-          // -----------------------------------------------------
-          // NDVI, NDWI, NDMI, SAVI, NBRI
-          // -----------------------------------------------------
+            // -----------------------------------------------------
+            // NDVI, NDWI, NDMI, SAVI, NBRI
+            // -----------------------------------------------------
     
-          } else {
-            // 各種インデックスの演算式（URLSearchParamsが自動で「+」を「%2B」に安全にエンコードしてくれます）
-            let indexAssets = [];
-            let expr = "";
-            if (satellite === "sentinel-2") {
-              switch (imgType) {
-                case "ndvi":
-                  indexAssets = ["B08", "B04"];
-                  expr = "(B08-B04)/(B08+B04)";
-                  break;
-                case "ndwi":
-                  indexAssets = ["B03", "B08"];
-                  expr = "(B03-B08)/(B03+B08)";
-                  break;
-                case "ndmi":
-                  indexAssets = ["B08", "B11"];
-                  expr = "(B08-B11)/(B08+B11)";
-                  break;
-                case "savi":
-                  indexAssets = ["B08", "B04"];
-                  expr = "1.5*(B08-B04)/(B08+B04+5000)";
-                  break;
-                case "nbri":
-                  indexAssets = ["B08", "B12"];
-                  expr = "(B08-B12)/(B08+B12)";
-                  break;
-                default:
-                  throw new Error(`未対応の画像タイプです: ${imgType}`);
-              }
+            //} else {
+              // 各種インデックスの演算式（URLSearchParamsが自動で「+」を「%2B」に安全にエンコードしてくれます）
+            //  let indexAssets = [];
+            //  let expr = "";
+            //  if (satellite === "sentinel-2") {
+            //    switch (imgType) {
+            //      case "ndvi":
+            //        indexAssets = ["B08", "B04"];
+            //        expr = "(B08-B04)/(B08+B04)";
+            //        break;
+            //      case "ndwi":
+            //        indexAssets = ["B03", "B08"];
+            //        expr = "(B03-B08)/(B03+B08)";
+            //        break;
+            //      case "ndmi":
+            //        indexAssets = ["B08", "B11"];
+            //        expr = "(B08-B11)/(B08+B11)";
+            //        break;
+            //      case "savi":
+            //        indexAssets = ["B08", "B04"];
+            //        expr = "1.5*(B08-B04)/(B08+B04+5000)";
+            //        break;
+            //      case "nbri":
+            //        indexAssets = ["B08", "B12"];
+            //        expr = "(B08-B12)/(B08+B12)";
+            //        break;
+            //      default:
+            //        throw new Error(`未対応の画像タイプです: ${imgType}`);
+            //    }
               
-            } else { // Landsatの場合
-              switch (imgType) {
-                case "ndvi":
-                  indexAssets = ["nir08", "red"];
-                  expr = "(nir08-red)/(nir08+red)";
-                  break;
-                case "ndwi":
-                  indexAssets = ["green", "nir08"];
-                  expr = "(green-nir08)/(green+nir08)";
-                  break;
-                case "ndmi":
-                  indexAssets = ["nir08", "swir16"];
-                  expr = "(nir08-swir16)/(nir08+swir16)";
-                  break;
-                case "savi":
-                  indexAssets = ["nir08", "red"];
-                  expr = "1.5*(nir08-red)/(nir08+red+0.5)";
-                  break;
-                case "nbri":
-                  indexAssets = ["nir08", "swir22"];
-                  expr = "(nir08-swir22)/(nir08+swir22)";
-                  break;
-                default:
-                  throw new Error(`未対応の画像タイプです: ${imgType}`);
-              }
-          }
+            //  } else { // Landsatの場合
+            //    switch (imgType) {
+            //      case "ndvi":
+            //        indexAssets = ["nir08", "red"];
+            //       expr = "(nir08-red)/(nir08+red)";
+            //        break;
+            //      case "ndwi":
+            //        indexAssets = ["green", "nir08"];
+            //        expr = "(green-nir08)/(green+nir08)";
+            //        break;
+            //      case "ndmi":
+            //        indexAssets = ["nir08", "swir16"];
+            //        expr = "(nir08-swir16)/(nir08+swir16)";
+            //        break;
+            //      case "savi":
+            //        indexAssets = ["nir08", "red"];
+            //        expr = "1.5*(nir08-red)/(nir08+red+0.5)";
+            //        break;
+            //      case "nbri":
+            //        indexAssets = ["nir08", "swir22"];
+            //        expr = "(nir08-swir22)/(nir08+swir22)";
+            //        break;
+            //      default:
+            //        throw new Error(`未対応の画像タイプです: ${imgType}`);
+                //}
+            //}
 
-          // ---------------------------------------------------
-          // 必要なアセットがSTAC Itemに存在するか確認
-          // ---------------------------------------------------
-          const missingAssets = indexAssets.filter(function(assetName) {
-            return !availableAssets.includes(assetName);
-          });
-          if (missingAssets.length > 0) {
-            throw new Error("指数計算に必要なアセットがありません: " + missingAssets.join(", ") + "\n\n利用可能なアセット:\n" + availableAssets.join(", "));
-          }
+            // ---------------------------------------------------
+            // 必要なアセットがSTAC Itemに存在するか確認
+            // ---------------------------------------------------
+            //const missingAssets = indexAssets.filter(function(assetName) {
+              //return !availableAssets.includes(assetName);
+            //});
+            //if (missingAssets.length > 0) {
+              //throw new Error("指数計算に必要なアセットがありません: " + missingAssets.join(", ") + "\n\n利用可能なアセット:\n" + availableAssets.join(", "));
+            //}
             
-          // ---------------------------------------------------
-          // URLパラメータ設定
-          // ---------------------------------------------------
-          indexAssets.forEach(function(assetName) {
-            tileJsonParams.append("assets", assetName);
-          });
+            // ---------------------------------------------------
+            // URLパラメータ設定
+            // ---------------------------------------------------
+            //indexAssets.forEach(function(assetName) {
+              //tileJsonParams.append("assets", assetName);
+            //});
           
-          tileJsonParams.set("asset_as_band", "true");
-          tileJsonParams.set("expression", expr);
-          tileJsonParams.set("colormap_name", "viridis");
-          tileJsonParams.set("rescale", "-1,1");
-          tileJsonParams.set("tile_format", "png");
+            //tileJsonParams.set("asset_as_band", "true");
+            //tileJsonParams.set("expression", expr);
+            //tileJsonParams.set("colormap_name", "viridis");
+            //tileJsonParams.set("rescale", "-1,1");
+            //tileJsonParams.set("tile_format", "png");
           
-          tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
-        }
+            //tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
+          //}
 
-        // -----------------------------------------------------
-        // デバッグ情報
-        // -----------------------------------------------------
-        console.log("[TileJSON URL]", tileJsonUrl);
-        console.log("[Item ID]", bestItem.id);
-        console.log("[Collection]", collectionId);
-        console.log("[Satellite]", satellite);
-        console.log("[Image Type]", imgType); 
-        console.log("[Available Assets]", availableAssets);
+          // -----------------------------------------------------
+          // デバッグ情報
+          // -----------------------------------------------------
+          //console.log("[TileJSON URL]", tileJsonUrl);
+          //console.log("[Item ID]", bestItem.id);
+          //console.log("[Collection]", collectionId);
+          //console.log("[Satellite]", satellite);
+          //console.log("[Image Type]", imgType); 
+          //console.log("[Available Assets]", availableAssets);
           
-        // =====================================================
-        // TileJSON Fetch
-        // =====================================================
-        const tileJsonResponse = await fetch(tileJsonUrl);
+          // =====================================================
+          // TileJSON Fetch
+          // =====================================================
+          //const tileJsonResponse = await fetch(tileJsonUrl);
           
-        if (!tileJsonResponse.ok) {
-          const err = await tileJsonResponse.text();
-          console.error("TileJSON Error", err);
-          throw new Error(`TileJSON取得失敗 (${tileJsonResponse.status})`);
-        }
+          //if (!tileJsonResponse.ok) {
+            //const err = await tileJsonResponse.text();
+            //console.error("TileJSON Error", err);
+            //throw new Error(`TileJSON取得失敗 (${tileJsonResponse.status})`);
+          //}
 
-        const tileJson = await tileJsonResponse.json();
-        console.log("[TileJSON]", tileJson);
+          //const tileJson = await tileJsonResponse.json();
+          //console.log("[TileJSON]", tileJson);
 
-        if (!tileJson.tiles || tileJson.tiles.length === 0) {
-          throw new Error("tiles配列が存在しません");
-        }
+          //if (!tileJson.tiles || tileJson.tiles.length === 0) {
+            //throw new Error("tiles配列が存在しません");
+          //}
 
-        const tileUrl = tileJson.tiles[0];
-        console.log("[Tile URL]", tileUrl);
+          //const tileUrl = tileJson.tiles[0];
+          //console.log("[Tile URL]", tileUrl);
           
         // 最終的なURL定義（tileUrlをここで正しく宣言）
         // const tileUrl = `${microsoftTileBase}?${params.toString()}`;
@@ -583,20 +1210,20 @@ window.selectedMunicipios = [];
         // const tileUrl = `${microsoftTileBase}?${params.toString()}&${sasToken}`;  
         // console.log("[Direct Tile Stream] Final Authenticated URL (Raw Key Attached):", tileUrl);
 
-        // =====================================================
-        // Layer Remove: 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
-        // =====================================================
-        if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
-          map.removeLayer(currentSatelliteLayer);
-        }
+          // =====================================================
+          // Layer Remove: 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
+          // =====================================================
+          //if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+            //map.removeLayer(currentSatelliteLayer);
+          //}
 
-        // =====================================================
-        // Pane
-        // =====================================================
-        if (!map.getPane("sentinelPane")) {
-          map.createPane("sentinelPane");
-          map.getPane("sentinelPane").style.zIndex = 450;
-        }
+          // =====================================================
+          // Pane
+          // =====================================================
+          //if (!map.getPane("sentinelPane")) {
+            //map.createPane("sentinelPane");
+            //map.getPane("sentinelPane").style.zIndex = 450;
+          //}
 
           
           // 結合用の最終URLをビルド
@@ -607,75 +1234,74 @@ window.selectedMunicipios = [];
           //  map.removeLayer(currentSatelliteLayer);
           // }
 
-        // =====================================================
-        // Leaflet Add: マップへ描画流し込み
-        // =====================================================
-        currentSatelliteLayer = L.tileLayer(tileUrl, {
-          pane: "sentinelPane",
-          maxZoom: 22,
-          opacity: 1.0,
-          attribution: "© Microsoft Planetary Computer"
-        });  
-//        }).addTo(map);
+          // =====================================================
+          // Leaflet Add: マップへ描画流し込み
+          // =====================================================
+          //currentSatelliteLayer = L.tileLayer(tileUrl, {
+            //pane: "sentinelPane",
+            //maxZoom: 22,
+            //opacity: 1.0,
+            //attribution: "© Microsoft Planetary Computer"
+          //});  
         
-        // Tile Success
-        currentSatelliteLayer.on("tileload", function(e){
-          console.log("[Tile Loaded]", e.coords);
-          }
-        );
+          // Tile Success
+          //currentSatelliteLayer.on("tileload", function(e){
+            //console.log("[Tile Loaded]", e.coords);
+            //}
+          //);
 
-       // Tile Error
-      currentSatelliteLayer.on("tileerror", function(e){
-          console.error("======================");
-          console.error("[Tile Error]");
-          console.error(tileUrl);
-          console.error(e);
-          console.error("======================");
-        }
-      );
+          // Tile Error
+          //currentSatelliteLayer.on("tileerror", function(e){
+            //console.error("======================");
+            //console.error("[Tile Error]");
+            //console.error(tileUrl);
+            //console.error(e);
+            //console.error("======================");
+          //}
+        //);
 
-     currentSatelliteLayer.addTo(map);     
+       //currentSatelliteLayer.addTo(map);     
           
-    // =================================================================
-    // 💡 Zoom: 【重要・追加】マップの表示位置を、衛星画像の撮影範囲に自動移動させる
-    // =================================================================
-    if (bestItem.bbox) {
-      // STACの標準BBox: [西(minX), 南(minY), 東(maxX), 北(maxY)]
-      const b = bestItem.bbox;
-      // LeafletのLatLngBoundsフォーマット: [[南, 西], [北, 東]] に変換
-      const satelliteBounds = [[b[1], b[0]], [b[3], b[2]]];
+      // =================================================================
+      // 💡 Zoom: 【重要・追加】マップの表示位置を、衛星画像の撮影範囲に自動移動させる
+      // =================================================================
+      //if (bestItem.bbox) {
+        // STACの標準BBox: [西(minX), 南(minY), 東(maxX), 北(maxY)]
+        //const b = bestItem.bbox;
+        // LeafletのLatLngBoundsフォーマット: [[南, 西], [北, 東]] に変換
+        //const satelliteBounds = [[b[1], b[0]], [b[3], b[2]]];
           
-      console.log("[Map View] Flying to satellite scene bounds:", satelliteBounds);
-      map.flyToBounds(satelliteBounds, { padding:[20, 20], duration: 1.5 });
-    }
+        //console.log("[Map View] Flying to satellite scene bounds:", satelliteBounds);
+        //map.flyToBounds(satelliteBounds, { padding:[20, 20], duration: 1.5 });
+      //}
 
-    // =====================================================
-    // Refresh
-    // =====================================================
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 500);
+      // =====================================================
+      // Refresh
+      // =====================================================
+      //setTimeout(() => {
+        //map.invalidateSize();
+      //}, 500);
 
-    // =====================================================
-    // Complete
-    // =====================================================
-    console.log("[SUCCESS] Satellite layer loaded.");
-    alert("Microsoftのサーバーから直接、衛星画像の描画に成功しました！");
+      // =====================================================
+      // Complete
+      // =====================================================
+      //console.log("[SUCCESS] Satellite layer loaded.");
+      //alert("Microsoftのサーバーから直接、衛星画像の描画に成功しました！");
           
-    // 6. 古い衛星レイヤーを消去してマップへ追加
-    // if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
-    //  map.removeLayer(currentSatelliteLayer);
-    // }
+      // 6. 古い衛星レイヤーを消去してマップへ追加
+      // if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+      //  map.removeLayer(currentSatelliteLayer);
+      // }
 
-        } catch (error) {
-          console.error("[Direct Stream Error] Details:", error);
-          alert(`エラーが発生しました:\n${error.message}`);
-        } finally {
-          btnFetchSatellite.disabled = false;
-          btnFetchSatellite.textContent = "Fetch Satellite Image";
-        } 
-      });
-    }
+      //} catch (error) {
+        //console.error("[Direct Stream Error] Details:", error);
+        //alert(`エラーが発生しました:\n${error.message}`);
+      //} finally {
+        //btnFetchSatellite.disabled = false;
+        //btnFetchSatellite.textContent = "Fetch Satellite Image";
+      //} 
+    //});
+  //}
     
     // 選択解除（Clear）
     btnClearSelection.addEventListener("click", function(e) {
