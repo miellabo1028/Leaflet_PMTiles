@@ -406,8 +406,8 @@ window.selectedMunicipios = [];
                   + `&assets=B04`
                   + `&assets=B03`
                   + `&assets=B02`
-                  + `&rescale=0,3000`
-                  + `&color_formula=Gamma RGB 3.0`;
+                  + `&rescale=0,4000`;
+                 // + `&color_formula=Gamma RGB 3.0`;
             } else {
               // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=SR_B4&assets=SR_B3&assets=SR_B2`;
               tileJsonUrl =
