@@ -186,35 +186,68 @@ window.selectedMunicipios = [];
             throw new Error("選択された市町村ポリゴンから幾何データ（Geometry）を読み取れませんでした。");
           }
 
-          // 4. Microsoft Planetary Computer STAC API への検索リクエスト作成
-          const stacUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
-          const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
+          // <POST version >4. Microsoft Planetary Computer STAC API への検索リクエスト作成
+          // const stacUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
+          // const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
 
           // 💡 幾何データの構造を純粋なGeoJSONオブジェクトに整形して安全性を高める
-          const cleanGeometry = {
-            type: geometry.type,
-            coordinates: geometry.coordinates
-          };
+          // const cleanGeometry = {
+          //  type: geometry.type,
+          //  coordinates: geometry.coordinates
+          // };
 
           // 💡 標準的なSTAC APIで最も安定して動く intersects パラメータに構造を最適化
-          const searchBody = {
-            "collections": [collectionId],
-            "intersects": cleanGeometry, // 👈 整形した幾何データをセット
-            "datetime": `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
-            "query": { "eo:cloud_cover": { "lte": cloudLimit } },
-            "sortby": [{ "field": "properties.eo:cloud_cover", "direction": "asc" }], // 雲が少ない順
-            "limit": 1
-          };
+          // const searchBody = {
+          //  "collections": [collectionId],
+          //  "intersects": cleanGeometry, // 👈 整形した幾何データをセット
+          //  "datetime": `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
+          //  "query": { "eo:cloud_cover": { "lte": cloudLimit } },
+          //  "sortby": [{ "field": "properties.eo:cloud_cover", "direction": "asc" }], // 雲が少ない順
+          //  "limit": 1
+          // };
 
-          console.log("[STAC] Requesting to Planetary Computer...", searchBody);
+          // console.log("[STAC] Requesting to Planetary Computer...", searchBody);
 
           // 送信処理
-          const response = await fetch(stacUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(searchBody)
+          // const response = await fetch(stacUrl, {
+          //  method: "POST",
+          //  headers: { "Content-Type": "application/json" },
+          //  body: JSON.stringify(searchBody)
+          // });
+
+          // 4. Microsoft Planetary Computer STAC API への検索リクエスト作成（GET方式への変更）
+          const stacBaseUrl = "https://microsoft.com";
+          const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
+
+          // GET用のクエリパラメータをURLSearchParamsで構築
+          const stacParams = new URLSearchParams({
+            "collections": collectionId,
+            "datetime": `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
+            "limit": 1
           });
 
+          // 💡 注意：複雑な intersects（ポリゴン構造）は、GETでは文字列としてシリアライズして渡します
+          stacParams.set("intersects", JSON.stringify(geometry));
+
+          // 💡 雲量フィルターとソート（雲が少ない順）の条件を追加
+          stacParams.set("query", JSON.stringify({ "eo:cloud_cover": { "lte": cloudLimit } }));
+          stacParams.set("sortby", JSON.stringify([{ "field": "properties.eo:cloud_cover", "direction": "asc" }]));
+
+          // 最終的な検索URLの組み立て
+          const finalStacUrl = `${stacBaseUrl}?${stacParams.toString()}`;
+          console.log("[STAC GET Request] URL:", finalStacUrl);
+
+          // GETメソッドで通信を実行（引数のオブジェクトを簡素化、または省略）
+          const response = await fetch(finalStacUrl, {
+            method: "GET",
+            headers: { "Accept": "application/json" }
+          });
+
+          if (!response.ok) throw new Error(`STAC API server error (HTTP ${response.status})`);
+        
+          const stacResult = await response.json();
+          
+          
           // Docker version
           // if (!response.ok) {
           //  throw new Error(`Planetary ComputerのSTAC APIでエラーが発生しました (HTTP ${response.status})`);
