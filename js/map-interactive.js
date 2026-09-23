@@ -243,11 +243,6 @@ window.selectedMunicipios = [];
             headers: { "Accept": "application/json" }
           });
 
-          if (!response.ok) throw new Error(`STAC API server error (HTTP ${response.status})`);
-        
-          const stacResult = await response.json();
-          
-          
           // Docker version
           // if (!response.ok) {
           //  throw new Error(`Planetary ComputerのSTAC APIでエラーが発生しました (HTTP ${response.status})`);
