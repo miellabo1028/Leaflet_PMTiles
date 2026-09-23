@@ -435,9 +435,11 @@ window.selectedMunicipios = [];
               rgbAssets.forEach(function(assetName) {
                 tileJsonParams.append("assets", assetName);
               });
-              tileJsonParams.append("rescale", "0,0.3");
-              tileJsonParams.append("rescale", "0,0.3");
-              tileJsonParams.append("rescale", "0,0.3");
+              tileJsonParams.append("rescale", "7000,18000");
+              tileJsonParams.append("rescale", "7000,18000");
+              tileJsonParams.append("rescale", "7000,18000");
+
+              tileJsonParams.set("color_formula", "Gamma RGB 1.5 Saturation 1.1");
             }
             tileJsonParams.set("tile_format", "png");
             tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/" + "WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
