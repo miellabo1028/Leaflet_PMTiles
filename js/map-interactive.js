@@ -186,6 +186,23 @@ window.selectedMunicipios = [];
             throw new Error("選択された市町村ポリゴンから幾何データ（Geometry）を読み取れませんでした。");
           }
 
+          // 💡<GET version> 【414エラー対策】複雑なポリゴンの代わりに、Leafletの機能を使って軽量なBBox（[西, 南, 東, 北]）を計算
+          // 複雑な座標配列をすべてURLに入れないことで、文字数オーバーを完璧に防ぎます。
+          let bbox = null;
+          try {
+            // geometryから一時的にLeafletのGeoJSONレイヤーを作成して四隅の座標を取得
+            const tempLayer = L.geoJSON(geometry);
+            const bounds = tempLayer.getBounds();
+            const west = bounds.getWest();
+            const south = bounds.getSouth();
+            const east = bounds.getEast();
+            const north = bounds.getNorth();
+            bbox = [west, south, east, north]; // STAC標準の[minX, minY, maxX, maxY]フォーマット
+          } catch (e) {
+            console.error("BBoxの計算に失敗しました:", e);
+            throw new Error("幾何データから範囲（BBox）を計算できませんでした。");
+          }
+          
           // <POST version >4. Microsoft Planetary Computer STAC API への検索リクエスト作成
           // const stacUrl = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
           // const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
@@ -227,7 +244,9 @@ window.selectedMunicipios = [];
           });
 
           // 💡 注意：複雑な intersects（ポリゴン構造）は、GETでは文字列としてシリアライズして渡します
-          stacParams.set("intersects", JSON.stringify(geometry));
+          // stacParams.set("intersects", JSON.stringify(geometry));
+          // 💡 【重要】intersectsの代わりに、計算したコンパクトなbbox配列をカンマ区切りの文字列でセット
+          stacParams.set("bbox", bbox.join(","));
 
           // 💡 雲量フィルターとソート（雲が少ない順）の条件を追加
           stacParams.set("query", JSON.stringify({ "eo:cloud_cover": { "lte": cloudLimit } }));
