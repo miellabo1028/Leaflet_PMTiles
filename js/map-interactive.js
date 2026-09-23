@@ -187,7 +187,7 @@ window.selectedMunicipios = [];
           }
 
           // 4. Microsoft Planetary Computer STAC API への検索リクエスト作成
-          const stacUrl = "https://microsoft.com";
+          const stacUrl = "https://planetarycomputer.microsoft.com/api/stac/v1";
           const collectionId = (satellite === "sentinel-2") ? "sentinel-2-l2a" : "landsat-c2-l2";
 
           // 💡 標準的なSTAC APIで最も安定して動く intersects パラメータに構造を最適化
