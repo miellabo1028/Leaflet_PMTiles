@@ -347,7 +347,7 @@ window.selectedMunicipios = [];
           
         // 1. 必須パラメータを初期設定
           let params = new URLSearchParams({
-            collection: collectionID,
+            collection: collectionId,
             item: bestItem.id
           });
           
