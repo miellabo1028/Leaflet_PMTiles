@@ -396,28 +396,50 @@ window.selectedMunicipios = [];
           // -----------------------------------------------------
           
           if (imgType === "rgb") {
+            const tileJsonParams = new URLSearchParams();
+            
+            tileJsonParams.set("collection", collectionId);
+            tileJsonParams.set("item", bestItem.id);
+            
             // True Colorのバンド割当て
             if (satellite === "sentinel-2") {
+              tileJsonParams.append("assets", "B04");
+              tileJsonParams.append("assets", "B03");
+              tileJsonParams.append("assets", "B02");
+              tileJsonParams.append("rescale", "0,4000");
+              tileJsonParams.append("rescale", "0,4000");
+              tileJsonParams.append("rescale", "0,4000");
               // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=B04&assets=B03&assets=B02`;
-              tileJsonUrl =
-                "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
-                  + `collection=${encodeURIComponent(collectionId)}`
-                  + `&item=${encodeURIComponent(bestItem.id)}`
-                  + `&assets=B04`
-                  + `&assets=B03`
-                  + `&assets=B02`
-                  + `&rescale=0,4000`;
+              // tileJsonUrl =
+              //  "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
+              //    + `collection=${encodeURIComponent(collectionId)}`
+              //    + `&item=${encodeURIComponent(bestItem.id)}`
+              //    + `&assets=B04`
+              //    + `&assets=B03`
+              //    + `&assets=B02`
+              //    + `&rescale=0,4000`;
                  // + `&color_formula=Gamma RGB 3.0`;
             } else {
               // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=SR_B4&assets=SR_B3&assets=SR_B2`;
-              tileJsonUrl =
-                "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
-                  + `collection=${encodeURIComponent(collectionId)}`
-                  + `&item=${encodeURIComponent(bestItem.id)}`
-                  + `&assets=SR_B4`
-                  + `&assets=SR_B3`
-                  + `&assets=SR_B2`;
+              tileJsonParams.append("assets", "red");
+              tileJsonParams.append("assets", "green");
+              tileJsonParams.append("assets", "blue");
+              
+              tileJsonParams.append("rescale", "7000,20000");
+              tileJsonParams.append("rescale", "7000,20000");
+              tileJsonParams.append("rescale", "7000,20000");
+              
+              // tileJsonUrl =
+              //  "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
+              //    + `collection=${encodeURIComponent(collectionId)}`
+              //    + `&item=${encodeURIComponent(bestItem.id)}`
+              //    + `&assets=SR_B4`
+              //    + `&assets=SR_B3`
+              //    + `&assets=SR_B2`;
             }
+            tileJsonParams.set("tile_format", "png");
+            
+            tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/" + "WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
           }
           // -----------------------------------------------------
           // NDVI etc
@@ -429,53 +451,83 @@ window.selectedMunicipios = [];
             if (satellite === "sentinel-2") {
               switch (imgType) {
                 case "ndvi":
-                  expr = "(B08-B04)/(B08+B04)";
-                break;
+                  indexAssets = ["B08", "B04"];
+                  expr = "(B08_b1-B04_b1)/(B08_b1+B04_b1)";
+                  break;
                 case "ndwi":
-                  expr = "(B03-B08)/(B03+B08)";
-                break;
+                  indexAssets = ["B03", "B08"];
+                  expr = "(B03_b1-B08_b1)/(B03_b1+B08_b1)";
+                  break;
                 case "ndmi":
-                  expr = "(B08-B11)/(B08+B11)";
-                break;
+                  indexAssets = ["B08", "B11"];
+                  expr = "(B08_b1-B11_b1)/(B08_b1+B11_b1)";
+                  break;
                 case "savi":
-                  expr = "1.5*(B08-B04)/(B08+B04+0.5)";
-                break;
+                  indexAssets = ["B08", "B04"];
+                  expr = "1.5*(B08_b1-B04_b1)/(B08_b1+B04_b1+0.5)";
+                  break;
                 case "nbri":
-                  expr = "(B08-B12)/(B08+B12)";
-                break;
+                  indexAssets = ["B08", "B12"];
+                  expr = "(B08_b1-B12_b1)/(B08_b1+B12_b1)";
+                  break;
+                default:
+                  throw new Error(`未対応の画像タイプです: ${imgType}`);
               }
               
             } else { // Landsatの場合
               switch (imgType) {
                 case "ndvi":
-                  expr = "(SR_B5-SR_B4)/(SR_B5+SR_B4)";
-                break;
+                  indexAssets = ["SR_B5", "SR_B4"];
+                  expr = "(SR_B3_b1-SR_B5_b1)/(SR_B3_b1+SR_B5_b1)";
+                  break;
                 case "ndwi":
-                  expr = "(SR_B3-SR_B5)/(SR_B3+SR_B5)";
-                break;
+                  indexAssets = ["SR_B3", "SR_B5"];
+                  expr = "(SR_B3_b1-SR_B5_b1)/(SR_B3_b1+SR_B5_b1)";
+                  break;
                 case "ndmi":
-                  expr = "(SR_B5-SR_B6)/(SR_B5+SR_B6)";
-                break;
+                  indexAssets = ["SR_B5", "SR_B6"];
+                  expr = "(SR_B5_b1-SR_B6_b1)/(SR_B5_b1+SR_B6_b1)";
+                  break;
                 case "savi":
-                  expr = "1.5*(SR_B5-SR_B4)/(SR_B5+SR_B4+0.5)";
-                break;
+                  indexAssets = ["SR_B5", "SR_B4"];
+                  expr = "1.5*(SR_B5_b1-SR_B4_b1)/(SR_B5_b1+SR_B4_b1+0.5)";
+                  break;
                 case "nbri":
-                  expr = "(SR_B5-SR_B7)/(SR_B5+SR_B7)";
-                break;
+                  indexAssets = ["SR_B5", "SR_B7"];
+                  expr = "(SR_B5_b1-SR_B7_b1)/(SR_B5_b1+SR_B7_b1)";
+                  break;
+                default:
+                  throw new Error(`未対応の画像タイプです: ${imgType}`);
               }
           }
+
+          const tileJsonParams = new URLSearchParams();
+
+          tileJsonParams.set("collection", collectionId);
+          tileJsonParams.set("item", bestItem.id);
+   
+          indexAssets.forEach(function(assetName) {
+            tileJsonParams.append("assets", assetName);
+          });
+          
+          tileJsonParams.set("asset_as_band", "true");
+          tileJsonParams.set("expression", expr);
+          tileJsonParams.set("colormap_name", "viridis");
+          tileJsonParams.set("rescale", "-1,1");
+          tileJsonParams.set("tile_format", "png");
+          
           // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `expression=${encodeURIComponent(expr)}` + `&colormap_name=viridis` + `&rescale=-1,1`;
-          tileJsonUrl =
-            "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
-              + `collection=${encodeURIComponent(collectionId)}`
-              + `&item=${encodeURIComponent(bestItem.id)}`
-              + `&expression=${encodeURIComponent(expr)}`
-              + `&colormap_name=viridis`
-              + `&rescale=-1,1`;
+          tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
+              // + `collection=${encodeURIComponent(collectionId)}`
+              // + `&item=${encodeURIComponent(bestItem.id)}`
+              // + `&expression=${encodeURIComponent(expr)}`
+              // + `&colormap_name=viridis`
+              // + `&rescale=-1,1`;
           }
         console.log("[TileJSON URL]", tileJsonUrl);
         console.log("[Item ID]", bestItem.id);
         console.log("[Collection]", collectionId);
+        console.log("[Available Assets]", Object.keys(bestItem.assets || {}));
           
         // =====================================================
         // TileJSON Fetch
