@@ -398,9 +398,23 @@ window.selectedMunicipios = [];
           if (imgType === "rgb") {
             // True Colorのバンド割当て
             if (satellite === "sentinel-2") {
-              tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=B04&assets=B03&assets=B02`;
+              // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=B04&assets=B03&assets=B02`;
+              tileJsonUrl =
+                "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
+                  + `collection=${encodeURIComponent(collectionId)}`
+                  + `&item=${encodeURIComponent(bestItem.id)}`
+                  + `&assets=B04`
+                  + `&assets=B03`
+                  + `&assets=B02`;
             } else {
-              tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=SR_B4&assets=SR_B3&assets=SR_B2`;
+              // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=SR_B4&assets=SR_B3&assets=SR_B2`;
+              tileJsonUrl =
+                "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
+                  + `collection=${encodeURIComponent(collectionId)}`
+                  + `&item=${encodeURIComponent(bestItem.id)}`
+                  + `&assets=SR_B4`
+                  + `&assets=SR_B3`
+                  + `&assets=SR_B2`;
             }
           }
           // -----------------------------------------------------
@@ -448,8 +462,15 @@ window.selectedMunicipios = [];
                 break;
               }
           }
-          tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `expression=${encodeURIComponent(expr)}` + `&colormap_name=viridis` + `&rescale=-1,1`;  
-        }
+          // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `expression=${encodeURIComponent(expr)}` + `&colormap_name=viridis` + `&rescale=-1,1`;
+          tileJsonUrl =
+            "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
+              + `collection=${encodeURIComponent(collectionId)}`
+              + `&item=${encodeURIComponent(bestItem.id)}`
+              + `&expression=${encodeURIComponent(expr)}`
+              + `&colormap_name=viridis`
+              + `&rescale=-1,1`;
+          }
         console.log("[TileJSON URL]", tileJsonUrl);
         console.log("[Item ID]", bestItem.id);
         console.log("[Collection]", collectionId);
