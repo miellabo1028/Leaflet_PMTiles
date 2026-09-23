@@ -230,7 +230,7 @@ window.selectedMunicipios = [];
 
           // 5. 【超重要】Planetary Computerの画像URLを読み取るための「暗号署名（SASトークン）」をMicrosoftから取得する
           // 💡 これを行わないと、TiTiler側で画像を読み込む際に 403 Forbidden エラーになります。
-          const signUrl = `https://microsoft.com`;
+          const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
           const signResponse = await fetch(signUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
