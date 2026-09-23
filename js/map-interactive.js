@@ -195,14 +195,8 @@ window.selectedMunicipios = [];
             "collections": [collectionId],
             "intersects": geometry, // 👈 幾何データをそのまま流し込み
             "datetime": `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
-            "query": {
-              "eo:cloud_cover": {
-                "lte": cloudLimit
-              }
-            },
-            "sortby": [
-              { "field": "properties.eo:cloud_cover", "direction": "asc" } // 雲が少ない順
-            ],
+            "query": { "eo:cloud_cover": { "lte": cloudLimit } },
+            "sortby": [{ "field": "properties.eo:cloud_cover", "direction": "asc" }], // 雲が少ない順
             "limit": 1
           };
 
@@ -214,9 +208,13 @@ window.selectedMunicipios = [];
             body: JSON.stringify(searchBody)
           });
 
-          if (!response.ok) {
-            throw new Error(`Planetary ComputerのSTAC APIでエラーが発生しました (HTTP ${response.status})`);
-          }
+          // Docker version
+          // if (!response.ok) {
+          //  throw new Error(`Planetary ComputerのSTAC APIでエラーが発生しました (HTTP ${response.status})`);
+          // }
+
+          //  Direct version
+          if (!response.ok) throw new Error(`STAC API server error (HTTP ${response.status})`);
           
           const stacResult = await response.json();
 
@@ -228,43 +226,83 @@ window.selectedMunicipios = [];
           const bestItem = stacResult.features[0];
           console.log("[STAC] Best Scene Item Found:", bestItem);
 
-          // 5. 【超重要】Planetary Computerの画像URLを読み取るための「暗号署名（SASトークン）」をMicrosoftから取得する
+          // Docker version 5. 【超重要】Planetary Computerの画像URLを読み取るための「暗号署名（SASトークン）」をMicrosoftから取得する
           // 💡 これを行わないと、TiTiler側で画像を読み込む際に 403 Forbidden エラーになります。
-          const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
-          const signResponse = await fetch(signUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(bestItem) // アイテム丸ごと渡すと、中に含まれる全画像URLにアクセスキーを付与してくれます
-          });
+          // const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
+          // const signResponse = await fetch(signUrl, {
+          //   method: "POST",
+          //   headers: { "Content-Type": "application/json" },
+          //   body: JSON.stringify(bestItem) // アイテム丸ごと渡すと、中に含まれる全画像URLにアクセスキーを付与してくれます
+          // });
 
-          if (!signResponse.ok) {
-            throw new Error("衛星画像URLの利用許可証（SASトークン）の取得に失敗しました。");
-          }
-          const signedItem = signResponse.json ? await signResponse.json() : await signResponse.json();
-          console.log("[STAC] SAS Token Attached successfully.");
+          // if (!signResponse.ok) {
+          //   throw new Error("衛星画像URLの利用許可証（SASトークン）の取得に失敗しました。");
+          // }
+          // const signedItem = signResponse.json ? await signResponse.json() : await signResponse.json();
+          // console.log("[STAC] SAS Token Attached successfully.");
 
           // 6. ローカルの TiTiler (Docker) 用のタイルURLを組み立てる
-          const titilerBase = "http://172.30.103.200:8000/stac/tiles/{z}/{x}/{y}.png";
+          // const titilerBase = "http://172.30.103.200:8000/stac/tiles/{z}/{x}/{y}.png";
           // const titilerBase = "http://localhost:8000/stac/tiles/{z}/{x}/{y}.png";
           
           // 署名付きの自己参照URLを取得
-          const selfLink = signedItem.links.find(l => l.rel === "self").href;
+          // const selfLink = signedItem.links.find(l => l.rel === "self").href;
+          
+          // let tileUrl = "";
+          
+          // if (imgType === "rgb") {
+            // True Color (RGB) のアセット割り当て
+          //   const assets = (satellite === "sentinel-2") ? "assets=B04&assets=B03&assets=B02" : "assets=red&assets=green&assets=blue";
+          //   const rescale = (satellite === "sentinel-2") ? "rescale=0,3000" : "rescale=0,0.3";
+          //   tileUrl = `${titilerBase}?url=${encodeURIComponent(selfLink)}&${assets}&${rescale}`;
+          // } else {
+            // NDVI などのインデックス計算
+          //  const nirBand = (satellite === "sentinel-2") ? "B08" : "nir08";
+          //  const redBand = (satellite === "sentinel-2") ? "B04" : "red";
+          //  const expr = `(typecast(${nirBand},'float32')-typecast(${redBand},'float32'))/(typecast(${nirBand},'float32')+typecast(${redBand},'float32'))`;
+          //  tileUrl = `${titilerBase}?url=${encodeURIComponent(selfLink)}&expression=${encodeURIComponent(expr)}&colormap_name=viridis&rescale=-1,1`;
+          // }
+
+          // 7. 古い衛星レイヤーを消去してマップへ追加
+          // if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+          //  map.removeLayer(currentSatelliteLayer);
+         //  }
+
+          // currentSatelliteLayer = L.tileLayer(tileUrl, {
+          //  pane: "sentinelPane",
+          //  maxZoom: 19,
+          //  attribution: "Planetary Computer | TiTiler"
+          // }).addTo(map);
+
+          // console.log("[TiTiler] Dynamic Tile Layer added to map. URL:", tileUrl);
+          // alert("衛星画像の描画に成功しました！");
+
+        // } catch (error) {
+          // console.error("[STAC/TiTiler Error] Details:", error);
+          // エラー内容をそのままダイアログに出すことで、どこで詰まったかを特定しやすくします
+          // alert(`エラーが発生しました:\n${error.message}\n\n※ローカルのDocker(TiTiler)が起動していることも確認してください。`);
+        // } finally {
+        //   btnFetchSatellite.disabled = false;
+        //   btnFetchSatellite.textContent = "Fetch Satellite Image";
+        // }
+
+        // 5. 【最適化】ローカルDockerをバイパスし、Microsoft公式の動的タイル配信サービスを利用
+        // 💡 これにより、ローカルでのDockerの起動不調や、社内LANのローカル通信ブロックを100%回避できます
+        const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/{z}/{x}/{y}.png";
           let tileUrl = "";
           
           if (imgType === "rgb") {
-            // True Color (RGB) のアセット割り当て
+            // True Color用のバンド指定と自動カラー補正パラメータ
             const assets = (satellite === "sentinel-2") ? "assets=B04&assets=B03&assets=B02" : "assets=red&assets=green&assets=blue";
-            const rescale = (satellite === "sentinel-2") ? "rescale=0,3000" : "rescale=0,0.3";
-            tileUrl = `${titilerBase}?url=${encodeURIComponent(selfLink)}&${assets}&${rescale}`;
+            const colorFormula = "color_formula=Gamma+RGB+3.5+Sat+1.2+Sigmoidal+RGB+15+0.35"; 
+            tileUrl = `${microsoftTileBase}?collection=${collectionId}&item=${bestItem.id}&${assets}&${colorFormula}`;
           } else {
-            // NDVI などのインデックス計算
-            const nirBand = (satellite === "sentinel-2") ? "B08" : "nir08";
-            const redBand = (satellite === "sentinel-2") ? "B04" : "red";
-            const expr = `(typecast(${nirBand},'float32')-typecast(${redBand},'float32'))/(typecast(${nirBand},'float32')+typecast(${redBand},'float32'))`;
-            tileUrl = `${titilerBase}?url=${encodeURIComponent(selfLink)}&expression=${encodeURIComponent(expr)}&colormap_name=viridis&rescale=-1,1`;
+            // NDVIなどのインデックス演算処理（Microsoft側のサーバーに数式を投げて動的にタイル化させます）
+            const expression = (satellite === "sentinel-2") ? "expression=(B08-B04)/(B08%2BB04)" : "expression=(nir08-red)/(nir08%2Bred)";
+            tileUrl = `${microsoftTileBase}?collection=${collectionId}&item=${bestItem.id}&${expression}&colormap_name=viridis&rescale=-1,1`;
           }
 
-          // 7. 古い衛星レイヤーを消去してマップへ追加
+          // 6. 古い衛星レイヤーを消去してマップへ追加
           if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
             map.removeLayer(currentSatelliteLayer);
           }
@@ -272,20 +310,19 @@ window.selectedMunicipios = [];
           currentSatelliteLayer = L.tileLayer(tileUrl, {
             pane: "sentinelPane",
             maxZoom: 19,
-            attribution: "Planetary Computer | TiTiler"
+            attribution: "© Microsoft Planetary Computer"
           }).addTo(map);
 
-          console.log("[TiTiler] Dynamic Tile Layer added to map. URL:", tileUrl);
-          alert("衛星画像の描画に成功しました！");
+          console.log("[Planetary Computer Direct] Layer added:", tileUrl);
+          alert("Microsoftのサーバーから直接、衛星画像の描画に成功しました！");
 
         } catch (error) {
-          console.error("[STAC/TiTiler Error] Details:", error);
-          // エラー内容をそのままダイアログに出すことで、どこで詰まったかを特定しやすくします
-          alert(`エラーが発生しました:\n${error.message}\n\n※ローカルのDocker(TiTiler)が起動していることも確認してください。`);
+          console.error("[Direct Fetch Error] Details:", error);
+          alert(`エラーが発生しました:\n${error.message}`);
         } finally {
           btnFetchSatellite.disabled = false;
           btnFetchSatellite.textContent = "Fetch Satellite Image";
-        }
+        } 
       });
     }
     
