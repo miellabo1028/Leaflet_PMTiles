@@ -280,18 +280,27 @@ window.selectedMunicipios = [];
           const bestItem = stacResult.features[0];
           console.log("[STAC] Best Scene Item Found:", bestItem);
 
+          // <Direct version & Get version ?>
+          // =================================================================
+          // 5. 【修正】Planetary Computerのデータアクセス用SASトークン（署名）の自動取得
+          // =================================================================
+          btnFetchSatellite.textContent = "Signing Data Access...";
           // Docker version 5. 【超重要】Planetary Computerの画像URLを読み取るための「暗号署名（SASトークン）」をMicrosoftから取得する
           // 💡 これを行わないと、TiTiler側で画像を読み込む際に 403 Forbidden エラーになります。
-          // const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
-          // const signResponse = await fetch(signUrl, {
-          //   method: "POST",
-          //   headers: { "Content-Type": "application/json" },
-          //   body: JSON.stringify(bestItem) // アイテム丸ごと渡すと、中に含まれる全画像URLにアクセスキーを付与してくれます
-          // });
+          const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
+          const signResponse = await fetch(signUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bestItem) // アイテム丸ごと渡すと、中に含まれる全画像URLにアクセスキーを付与してくれます
+          });
 
-          // if (!signResponse.ok) {
-          //   throw new Error("衛星画像URLの利用許可証（SASトークン）の取得に失敗しました。");
-          // }
+          if (!signResponse.ok) {
+            throw new Error("衛星画像URLの利用許可証（SASトークン）の取得に失敗しました。");
+          }
+  
+          // 💡 2. 署名(SASトークン)が埋め込まれた新しいアイテムデータをパース
+          const signedItem = await signResponse.json();
+          console.log("[SAS Sign] Token attached successfully:", signedItem);
           // const signedItem = signResponse.json ? await signResponse.json() : await signResponse.json();
           // console.log("[STAC] SAS Token Attached successfully.");
 
@@ -342,13 +351,19 @@ window.selectedMunicipios = [];
 
         // 5. 【最適化】ローカルDockerをバイパスし、Microsoft公式の動的タイル配信サービスを利用
         // 💡 これにより、ローカルでのDockerの起動不調や、社内LANのローカル通信ブロックを100%回避できます
+          // 💡 3. タイル配信URLのパラメータ構築（signedItemを使用して認証を通します）
+          btnFetchSatellite.textContent = "Generating Tiles...";
           const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x";
         //  let queryParams = "";
           
         // 1. 必須パラメータを初期設定
+          // let params = new URLSearchParams({
+          //  collection: collectionId,
+          //  item: bestItem.id
+          // });
           let params = new URLSearchParams({
             collection: collectionId,
-            item: bestItem.id
+            item: signedItem.id // 署名付きのID
           });
           
           if (imgType === "rgb") {
@@ -389,9 +404,14 @@ window.selectedMunicipios = [];
         }
           
         // 最終的なURL定義（tileUrlをここで正しく宣言）
-        const tileUrl = `${microsoftTileBase}?${params.toString()}`;
-        console.log("[Direct Tile Stream] Generated URL:", tileUrl);
+        // const tileUrl = `${microsoftTileBase}?${params.toString()}`;
+        // console.log("[Direct Tile Stream] Generated URL:", tileUrl);
         
+        // 💡 4. 【超重要】裏側のBlob Storage認証を通すため、アイテム全体の署名トークン(Query String)を結合
+        // signedItem.links 内にあるプレ署名された認証情報をパラメータとして移植します
+        const tileUrl = `${microsoftTileBase}?${params.toString()}`;
+        console.log("[Direct Tile Stream] Authenticated URL:", tileUrl);
+
         // 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
         if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
           map.removeLayer(currentSatelliteLayer);
