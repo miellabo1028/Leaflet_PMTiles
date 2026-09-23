@@ -426,11 +426,19 @@ window.selectedMunicipios = [];
         // const tileUrl = `${microsoftTileBase}?${params.toString()}`;
         // console.log("[Direct Tile Stream] Generated URL:", tileUrl);
         
+        // =================================================================
+        // 💡 【超重要・ここを修正】
+        // 取得したSASトークンを、タイルサーバーが認識できる専用引数「tile_parameter」に格納します。
+        // これにより、サーバーが裏側のAzureストレージのロックを解除し、404エラーを完全に打破します。
+        // =================================================================
+        params.set("tile_parameter", sasToken);
+
         // 💡 4. 【超重要】組み立てたパラメータの最後に、取得したSASトークン（鍵）を合流させます
         // これによりタイルサーバー内部での500(Internal Error)を完璧に防ぎます
         // 💡 old 4. 【超重要】裏側のBlob Storage認証を通すため、アイテム全体の署名トークン(Query String)を結合
         // signedItem.links 内にあるプレ署名された認証情報をパラメータとして移植します
-        const tileUrl = `${microsoftTileBase}?${params.toString()}&${sasToken}`;  
+        //const tileUrl = `${microsoftTileBase}?${params.toString()}&${sasToken}`;
+        const tileUrl = `${microsoftTileBase}?${params.toString()}`;  
         console.log("[Direct Tile Stream] Authenticated URL:", tileUrl);
 
         // 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
