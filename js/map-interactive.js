@@ -402,73 +402,70 @@ window.selectedMunicipios = [];
             tileJsonParams.set("item", bestItem.id);
             
             // True Colorのバンド割当て
-            if (satellite === "sentinel-2") {
-              tileJsonParams.append("assets", "B04");
-              tileJsonParams.append("assets", "B03");
-              tileJsonParams.append("assets", "B02");
+            if (satellite === "sentinel-2") { 
+              // Sentinel-2 True Color
+              const rgbAssets = ["B04", "B03", "B02"];
+              const missingAssets = rgbAssets.filter(function(assetName) {
+                return !availableAssets.includes(assetName);
+              });
+              if (missingAssets.length > 0) {
+                throw new Error("Sentinel-2 RGB表示に必要なアセットがありません: " + missingAssets.join(", "));
+              }
+              rgbAssets.forEach(function(assetName) {
+                tileJsonParams.append("assets", assetName);
+              });
               tileJsonParams.append("rescale", "0,4000");
               tileJsonParams.append("rescale", "0,4000");
               tileJsonParams.append("rescale", "0,4000");
-              // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=B04&assets=B03&assets=B02`;
-              // tileJsonUrl =
-              //  "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
-              //    + `collection=${encodeURIComponent(collectionId)}`
-              //    + `&item=${encodeURIComponent(bestItem.id)}`
-              //    + `&assets=B04`
-              //    + `&assets=B03`
-              //    + `&assets=B02`
-              //    + `&rescale=0,4000`;
-                 // + `&color_formula=Gamma RGB 3.0`;
-            } else {
-              // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=SR_B4&assets=SR_B3&assets=SR_B2`;
-              tileJsonParams.append("assets", "red");
-              tileJsonParams.append("assets", "green");
-              tileJsonParams.append("assets", "blue");
-              
-              tileJsonParams.append("rescale", "7000,20000");
-              tileJsonParams.append("rescale", "7000,20000");
-              tileJsonParams.append("rescale", "7000,20000");
-              
-              // tileJsonUrl =
-              //  "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?"
-              //    + `collection=${encodeURIComponent(collectionId)}`
-              //    + `&item=${encodeURIComponent(bestItem.id)}`
-              //    + `&assets=SR_B4`
-              //    + `&assets=SR_B3`
-              //    + `&assets=SR_B2`;
+            } else { 
+              // Landsat Ture Color
+              const rgbAssets = ["red", "green", "blue"];
+              const missingAssets = rgbAssets.filter(function(assetName) {
+                return !availableAssets.includes(assetName);
+              });
+              if (missingAssets.length > 0) {
+                throw new Error("Landsat RGB表示に必要なアセットがありません: " + missingAssets.join(", "));
+              }
+              rgbAssets.forEach(function(assetName) {
+                tileJsonParams.append("assets", assetName);
+              });
+              tileJsonParams.append("rescale", "0,0.3");
+              tileJsonParams.append("rescale", "0,0.3");
+              tileJsonParams.append("rescale", "0,0.3");
             }
             tileJsonParams.set("tile_format", "png");
             
             tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/" + "WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
           }
           // -----------------------------------------------------
-          // NDVI etc
+          // NDVI, NDWI, NDMI, SAVI, NBRI
           // -----------------------------------------------------
     
           else {
             // 各種インデックスの演算式（URLSearchParamsが自動で「+」を「%2B」に安全にエンコードしてくれます）
+            let indexAssets = [];
             let expr = "";
             if (satellite === "sentinel-2") {
               switch (imgType) {
                 case "ndvi":
                   indexAssets = ["B08", "B04"];
-                  expr = "(B08_b1-B04_b1)/(B08_b1+B04_b1)";
+                  expr = "(B08-B04)/(B08+B04)";
                   break;
                 case "ndwi":
                   indexAssets = ["B03", "B08"];
-                  expr = "(B03_b1-B08_b1)/(B03_b1+B08_b1)";
+                  expr = "(B03-B08)/(B03+B08)";
                   break;
                 case "ndmi":
                   indexAssets = ["B08", "B11"];
-                  expr = "(B08_b1-B11_b1)/(B08_b1+B11_b1)";
+                  expr = "(B08-B11)/(B08+B11)";
                   break;
                 case "savi":
                   indexAssets = ["B08", "B04"];
-                  expr = "1.5*(B08_b1-B04_b1)/(B08_b1+B04_b1+0.5)";
+                  expr = "1.5*(B08-B04)/(B08+B04+5000)";
                   break;
                 case "nbri":
                   indexAssets = ["B08", "B12"];
-                  expr = "(B08_b1-B12_b1)/(B08_b1+B12_b1)";
+                  expr = "(B08-B12)/(B08+B12)";
                   break;
                 default:
                   throw new Error(`未対応の画像タイプです: ${imgType}`);
@@ -477,35 +474,48 @@ window.selectedMunicipios = [];
             } else { // Landsatの場合
               switch (imgType) {
                 case "ndvi":
-                  indexAssets = ["SR_B5", "SR_B4"];
-                  expr = "(SR_B3_b1-SR_B5_b1)/(SR_B3_b1+SR_B5_b1)";
+                  indexAssets = ["nir08", "red"];
+                  expr = "(nir08-red)/(nir08+red)";
                   break;
                 case "ndwi":
-                  indexAssets = ["SR_B3", "SR_B5"];
-                  expr = "(SR_B3_b1-SR_B5_b1)/(SR_B3_b1+SR_B5_b1)";
+                  indexAssets = ["green", "nir08"];
+                  expr = "(green-nir08)/(green+nir08)";
                   break;
                 case "ndmi":
-                  indexAssets = ["SR_B5", "SR_B6"];
-                  expr = "(SR_B5_b1-SR_B6_b1)/(SR_B5_b1+SR_B6_b1)";
+                  indexAssets = ["nir08", "swir16"];
+                  expr = "(nir08-swir16)/(nir08+swir16)";
                   break;
                 case "savi":
-                  indexAssets = ["SR_B5", "SR_B4"];
-                  expr = "1.5*(SR_B5_b1-SR_B4_b1)/(SR_B5_b1+SR_B4_b1+0.5)";
+                  indexAssets = ["nir08", "red"];
+                  expr = "1.5*(nir08-red)/(nir08+red+0.5)";
                   break;
                 case "nbri":
-                  indexAssets = ["SR_B5", "SR_B7"];
-                  expr = "(SR_B5_b1-SR_B7_b1)/(SR_B5_b1+SR_B7_b1)";
+                  indexAssets = ["nir08", "swir22"];
+                  expr = "(nir08-swir22)/(nir08+swir22)";
                   break;
                 default:
                   throw new Error(`未対応の画像タイプです: ${imgType}`);
               }
           }
 
-          const tileJsonParams = new URLSearchParams();
+          // ---------------------------------------------------
+          // 必要なアセットがSTAC Itemに存在するか確認
+          // ---------------------------------------------------
+          const missingAssets = indexAssets.filter(function(assetName) {
+            return !availableAssets.includes(assetName);
+          });
+          if (missingAssets.length > 0) {
+            throw new Error("指数計算に必要なアセットがありません: " + missingAssets.join(", ") + "\n\n利用可能なアセット:\n" + availableAssets.join(", "));
+          }
+            
+          // const tileJsonParams = new URLSearchParams();
 
-          tileJsonParams.set("collection", collectionId);
-          tileJsonParams.set("item", bestItem.id);
+          // tileJsonParams.set("collection", collectionId);
+          // tileJsonParams.set("item", bestItem.id);
    
+          // ---------------------------------------------------
+          // URLパラメータ設定
+          // ---------------------------------------------------
           indexAssets.forEach(function(assetName) {
             tileJsonParams.append("assets", assetName);
           });
@@ -524,10 +534,15 @@ window.selectedMunicipios = [];
               // + `&colormap_name=viridis`
               // + `&rescale=-1,1`;
           }
+        // -----------------------------------------------------
+        // デバッグ情報
+        // -----------------------------------------------------
         console.log("[TileJSON URL]", tileJsonUrl);
         console.log("[Item ID]", bestItem.id);
         console.log("[Collection]", collectionId);
-        console.log("[Available Assets]", Object.keys(bestItem.assets || {}));
+        console.log("[Satellite]", satellite);
+        console.log("[Image Type]", imgType); 
+        console.log("[Available Assets]", availableAssets);
           
         // =====================================================
         // TileJSON Fetch
