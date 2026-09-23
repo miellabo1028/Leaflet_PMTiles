@@ -250,17 +250,19 @@ window.selectedMunicipios = [];
 
           // 💡 雲量フィルターとソート（雲が少ない順）の条件を追加
           stacParams.set("query", JSON.stringify({ "eo:cloud_cover": { "lte": cloudLimit } }));
-          stacParams.set("sortby", JSON.stringify([{ "field": "properties.eo:cloud_cover", "direction": "asc" }]));
+          // 一時コメントアウト
+          // stacParams.set("sortby", JSON.stringify([{ "field": "properties.eo:cloud_cover", "direction": "asc" }]));
 
           // 最終的な検索URLの組み立て
           const finalStacUrl = `${stacBaseUrl}?${stacParams.toString()}`;
           console.log("[STAC GET Request] URL:", finalStacUrl);
 
           // GETメソッドで通信を実行（引数のオブジェクトを簡素化、または省略）
-          const response = await fetch(finalStacUrl, {
-            method: "GET",
-            headers: { "Accept": "application/json" }
-          });
+          // const response = await fetch(finalStacUrl, {
+          //  method: "GET",
+          //  headers: { "Accept": "application/json" }
+          // });
+          const response = await fetch(finalStacUrl);
 
           // Docker version
           // if (!response.ok) {
@@ -268,9 +270,11 @@ window.selectedMunicipios = [];
           // }
 
           //  Direct version
-          if (!response.ok) throw new Error(`STAC API server error (HTTP ${response.status})`);
+          // if (!response.ok) throw new Error(`STAC API server error (HTTP ${response.status})`);
+          if (!response.ok) throw new Error(`STAC Search Error (${response.status})` );
           
           const stacResult = await response.json();
+          console.log("[STAC Result]", stacResult);
 
           if (!stacResult.features || stacResult.features.length === 0) {
             throw new Error("指定された期間・雲量の条件に一致する衛星画像が、選択エリア内に見つかりませんでした。日付を広げるか、雲量制限を増やしてください。");
@@ -285,7 +289,7 @@ window.selectedMunicipios = [];
           // =================================================================
           // 5. old【修正】Planetary Computerのデータアクセス用SASトークン（署名）の自動取得
           // =================================================================
-          btnFetchSatellite.textContent = "Acquiring Azure Storage Token...";
+          // btnFetchSatellite.textContent = "Acquiring Azure Storage Token...";
           // Docker version 5. 【超重要】Planetary Computerの画像URLを読み取るための「暗号署名（SASトークン）」をMicrosoftから取得する
           // 💡 これを行わないと、TiTiler側で画像を読み込む際に 403 Forbidden エラーになります。
           // const signUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/sign`;
@@ -297,21 +301,21 @@ window.selectedMunicipios = [];
 
           // 💡 1. データの保管されているコンテナ名をコレクションIDから特定します
           // Sentinel-2は「sentinel-2-l2a」、Landsatは「landsat-c2-l2」というストレージアカウント名になります
-          const storageAccount = (collectionId === "sentinel-2-l2a") ? "sentinel2euwest" : "landsatc2l2";
-          const containerName = collectionId;
+          // const storageAccount = (collectionId === "sentinel-2-l2a") ? "sentinel2euwest" : "landsatc2l2";
+          // const containerName = collectionId;
           
           // 💡 2. 安全なGETメソッドで、このコンテナ専用のアクセス許可トークンを1通だけ要求します
           // GETなので、ブラウザのOPTIONS（405エラー）に引っかからず瞬時に取得できます
           // const tokenApiUrl = `https://microsoft.com{storageAccount}/${containerName}`;
-          const tokenApiUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/token/${collectionId}`;
+          // const tokenApiUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/token/${collectionId}`;
           
-          const tokenResponse = await fetch(tokenApiUrl, { method: "GET" });
-          if (!tokenResponse.ok) {
-            throw new Error(`ストレージトークンの取得に失敗しました。Status: ${tokenResponse.status}`);
-          }
+          // const tokenResponse = await fetch(tokenApiUrl, { method: "GET" });
+          // if (!tokenResponse.ok) {
+          //  throw new Error(`ストレージトークンの取得に失敗しました。Status: ${tokenResponse.status}`);
+          // }
 
-          const tokenData = await tokenResponse.json();
-          const sasToken = tokenData.token; // 👈 これがMicrosoftの鍵（トークン文字列）です
+          // const tokenData = await tokenResponse.json();
+          // const sasToken = tokenData.token; // 👈 これがMicrosoftの鍵（トークン文字列）です
 
           // if (!signResponse.ok) {
           //  throw new Error("衛星画像URLの利用許可証（SASトークン）の取得に失敗しました。");
@@ -372,55 +376,104 @@ window.selectedMunicipios = [];
         // 💡 これにより、ローカルでのDockerの起動不調や、社内LANのローカル通信ブロックを100%回避できます
           // 💡 3. タイル配信URLのパラメータ構築（signedItemを使用して認証を通します）
           btnFetchSatellite.textContent = "Generating Tiles...";
-          const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x";
+
+          let tileJsonUrl = "";
+          // const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x";
         //  let queryParams = "";
           
         // 1. 必須パラメータを初期設定
-          let params = new URLSearchParams({
-            collection: collectionId,
-            item: bestItem.id
-          });
+          // let params = new URLSearchParams({
+          //  collection: collectionId,
+          //  item: bestItem.id
+          // });
           // let params = new URLSearchParams({
           //  collection: collectionId,
           //  item: signedItem.id // 署名付きのID
          // });
           
+          // -----------------------------------------------------
+          // RGB
+          // -----------------------------------------------------
+          
           if (imgType === "rgb") {
             // True Colorのバンド割当て
             if (satellite === "sentinel-2") {
-              // Sentinel-2は複数のassetsパラメータを並べる必要があるため、個別に追加
-              params.append("assets", "B04");
-              params.append("assets", "B03");
-              params.append("assets", "B02");
+              tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=B04&assets=B03&assets=B02`;
             } else {
-              params.append("assets", "red");
-              params.append("assets", "green");
-              params.append("assets", "blue");
+              tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `assets=SR_B4&assets=SR_B3&assets=SR_B2`;
             }
-            // カラーフォーミュラ
-            params.set("color_formula", "Gamma RGB 3.5 Sat 1.2 Sigmoidal RGB 15 0.35");
-    
-            } else {
-              // 各種インデックスの演算式（URLSearchParamsが自動で「+」を「%2B」に安全にエンコードしてくれます）
-              let expr = "";
-              if (satellite === "sentinel-2") {
-                if (imgType === "ndvi") expr = "(B08-B04)/(B08+B04)";
-                else if (imgType === "ndwi") expr = "(B03-B08)/(B03+B08)";
-                else if (imgType === "ndmi") expr = "(B08-B11)/(B08+B11)";
-                else if (imgType === "savi") expr = "1.5*(B08-B04)/(B08+B04+0.5)";
-                else if (imgType === "nbri") expr = "(B08-B12)/(B08+B12)";
-            } else { // Landsatの場合
-              if (imgType === "ndvi") expr = "(nir08-red)/(nir08+red)";
-              else if (imgType === "ndwi") expr = "(green-nir08)/(green+nir08)";
-              else if (imgType === "ndmi") expr = "(nir08-swir16)/(nir08+swir16)";
-              else if (imgType === "savi") expr = "1.5*(nir08-red)/(nir08+red+0.5)";
-              else if (imgType === "nbri") expr = "(nir08-swir22)/(nir08+swir22)";
           }
+          // -----------------------------------------------------
+          // NDVI etc
+          // -----------------------------------------------------
     
-          params.set("expression", expr);
-          params.set("colormap_name", "viridis");
-          params.set("rescale", "-1,1");
+          else {
+            // 各種インデックスの演算式（URLSearchParamsが自動で「+」を「%2B」に安全にエンコードしてくれます）
+            let expr = "";
+            if (satellite === "sentinel-2") {
+              switch (imgType) {
+                case "ndvi":
+                  expr = "(B08-B04)/(B08+B04)";
+                break;
+                case "ndwi":
+                  expr = "(B03-B08)/(B03+B08)";
+                break;
+                case "ndmi":
+                  expr = "(B08-B11)/(B08+B11)";
+                break;
+                case "savi":
+                  expr = "1.5*(B08-B04)/(B08+B04+0.5)";
+                break;
+                case "nbri":
+                  expr = "(B08-B12)/(B08+B12)";
+                break;
+              }
+              
+            } else { // Landsatの場合
+              switch (imgType) {
+                case "ndvi":
+                  expr = "(SR_B5-SR_B4)/(SR_B5+SR_B4)";
+                break;
+                case "ndwi":
+                  expr = "(SR_B3-SR_B5)/(SR_B3+SR_B5)";
+                break;
+                case "ndmi":
+                  expr = "(SR_B5-SR_B6)/(SR_B5+SR_B6)";
+                break;
+                case "savi":
+                  expr = "1.5*(SR_B5-SR_B4)/(SR_B5+SR_B4+0.5)";
+                break;
+                case "nbri":
+                  expr = "(SR_B5-SR_B7)/(SR_B5+SR_B7)";
+                break;
+              }
+          }
+          tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `expression=${encodeURIComponent(expr)}` + `&colormap_name=viridis` + `&rescale=-1,1`;  
         }
+        console.log("[TileJSON URL]", tileJsonUrl);
+        console.log("[Item ID]", bestItem.id);
+        console.log("[Collection]", collectionId);
+          
+        // =====================================================
+        // TileJSON Fetch
+        // =====================================================
+        const tileJsonResponse = await fetch(tileJsonUrl);
+          
+        if (!tileJsonResponse.ok) {
+          const err = await tileJsonResponse.text();
+          console.error("TileJSON Error", err);
+          throw new Error(`TileJSON取得失敗 (${tileJsonResponse.status})`);
+        }
+
+        const tileJson = await tileJsonResponse.json();
+        console.log("[TileJSON]", tileJson);
+
+        if (!tileJson.tiles || tileJson.tiles.length === 0) {
+          throw new Error("tiles配列が存在しません");
+        }
+
+        const tileUrl = tileJson.tiles[0];
+        console.log("[Tile URL]", tileUrl);
           
         // 最終的なURL定義（tileUrlをここで正しく宣言）
         // const tileUrl = `${microsoftTileBase}?${params.toString()}`;
@@ -440,13 +493,24 @@ window.selectedMunicipios = [];
         //const tileUrl = `${microsoftTileBase}?${params.toString()}&${sasToken}`;
         //const tileUrl = `${microsoftTileBase}?${params.toString()}`;
         //console.log("[Direct Tile Stream] Authenticated URL:", tileUrl);
-        const tileUrl = `${microsoftTileBase}?${params.toString()}&${sasToken}`;  
-        console.log("[Direct Tile Stream] Final Authenticated URL (Raw Key Attached):", tileUrl);
+        // const tileUrl = `${microsoftTileBase}?${params.toString()}&${sasToken}`;  
+        // console.log("[Direct Tile Stream] Final Authenticated URL (Raw Key Attached):", tileUrl);
 
-        // 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
+        // =====================================================
+        // Layer Remove: 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
+        // =====================================================
         if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
           map.removeLayer(currentSatelliteLayer);
         }
+
+        // =====================================================
+        // Pane
+        // =====================================================
+        if (!map.getPane("sentinelPane")) {
+          map.createPane("sentinelPane");
+          map.getPane("sentinelPane").style.zIndex = 450;
+        }
+
           
           // 結合用の最終URLをビルド
           // const tileUrl = ${microsoftTileBase}?
@@ -456,33 +520,65 @@ window.selectedMunicipios = [];
           //  map.removeLayer(currentSatelliteLayer);
           // }
 
-          // マップへ描画流し込み
-          currentSatelliteLayer = L.tileLayer(tileUrl, {
-            pane: "sentinelPane",
-            maxZoom: 19,
-            attribution: "© Microsoft Planetary Computer"
-          }).addTo(map);
-          
-          // =================================================================
-          // 💡 【重要・追加】マップの表示位置を、衛星画像の撮影範囲に自動移動させる
-          // =================================================================
-          if (bestItem.bbox) {
-            // STACの標準BBox: [西(minX), 南(minY), 東(maxX), 北(maxY)]
-            const b = bestItem.bbox;
-            // LeafletのLatLngBoundsフォーマット: [[南, 西], [北, 東]] に変換
-            const satelliteBounds = [[b[1], b[0]], [b[3], b[2]]];
-          
-            console.log("[Map View] Flying to satellite scene bounds:", satelliteBounds);
-            map.flyToBounds(satelliteBounds, { padding:[20, 20], duration: 1.5 });
+        // =====================================================
+        // Leaflet Add: マップへ描画流し込み
+        // =====================================================
+        currentSatelliteLayer = L.tileLayer(tileUrl, {
+          pane: "sentinelPane",
+          maxZoom: 22,
+          opacity: 1.0,
+          attribution: "© Microsoft Planetary Computer"
+        });  
+//        }).addTo(map);
+        
+        // Tile Success
+        currentSatelliteLayer.on("tileload", function(e){
+          console.log("[Tile Loaded]", e.coords);
           }
+        );
 
-          console.log("[Direct Tile Stream] Tile rendering initiated.");
-          alert("Microsoftのサーバーから直接、衛星画像の描画に成功しました！");
+       // Tile Error
+      currentSatelliteLayer.on("tileerror", function(e){
+          console.error("======================");
+          console.error("[Tile Error]");
+          console.error(tileUrl);
+          console.error(e);
+          console.error("======================");
+        }
+      );
+
+     currentSatelliteLayer.addTo(map);     
           
-          // 6. 古い衛星レイヤーを消去してマップへ追加
-          // if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
-          //  map.removeLayer(currentSatelliteLayer);
-          // }
+    // =================================================================
+    // 💡 Zoom: 【重要・追加】マップの表示位置を、衛星画像の撮影範囲に自動移動させる
+    // =================================================================
+    if (bestItem.bbox) {
+      // STACの標準BBox: [西(minX), 南(minY), 東(maxX), 北(maxY)]
+      const b = bestItem.bbox;
+      // LeafletのLatLngBoundsフォーマット: [[南, 西], [北, 東]] に変換
+      const satelliteBounds = [[b[1], b[0]], [b[3], b[2]]];
+          
+      console.log("[Map View] Flying to satellite scene bounds:", satelliteBounds);
+      map.flyToBounds(satelliteBounds, { padding:[20, 20], duration: 1.5 });
+    }
+
+    // =====================================================
+    // Refresh
+    // =====================================================
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 500);
+
+    // =====================================================
+    // Complete
+    // =====================================================
+    console.log("[SUCCESS] Satellite layer loaded.");
+    alert("Microsoftのサーバーから直接、衛星画像の描画に成功しました！");
+          
+    // 6. 古い衛星レイヤーを消去してマップへ追加
+    // if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+    //  map.removeLayer(currentSatelliteLayer);
+    // }
 
         } catch (error) {
           console.error("[Direct Stream Error] Details:", error);
