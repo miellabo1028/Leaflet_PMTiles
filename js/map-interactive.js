@@ -154,7 +154,7 @@ function setupPanelEvents(map) {
   // =====================================================================
   if (btnFetchSatellite) {
     // 現在のクリッピング更新関数
-    et currentClipUpdateHandler = null;
+    let currentClipUpdateHandler = null;
 
     // -------------------------------------------------------------------
     // 選択中の全Municipioを包含するBBoxを取得
@@ -218,49 +218,40 @@ function setupPanelEvents(map) {
       // 前回登録したイベントを解除
       if (currentClipUpdateHandler) {
         map.off("move zoom viewreset resize", currentClipUpdateHandler);
-       currentClipUpdateHandler = null;
+        currentClipUpdateHandler = null;
       }
       
       function updateClip() {
-        if (!tileLayer || !map.hasLayer(tileLayer)) {
+        if (!tileLayer || !map.hasLayer(tileLayer)) {
           return;
         }
         const container = tileLayer.getContainer();
         if (!container) {
           return;
         }
-        
         const mapSize = map.getSize();
         const northwest = map.latLngToContainerPoint(leafletBounds.getNorthWest());
         const southeast = map.latLngToContainerPoint(leafletBounds.getSouthEast());
-
-        // マップ画面内の座標へ制限
         const left = Math.max(0, Math.min(mapSize.x, northwest.x));
         const top = Math.max(0, Math.min(mapSize.y, northwest.y));
-        const right = Math.max(0, Math.min(mapSize.x, southeast.x));
+        const right = Math.max(0,Math.min(mapSize.x, southeast.x));
         const bottom = Math.max(0, Math.min(mapSize.y, southeast.y));
-        
-        /*
-         * CSS clip-path: inset(top right bottom left)
-         *
-         * right側とbottom側は、画面端からの距離へ変換する。
-         */
         const insetTop = Math.max(0, top);
         const insetRight = Math.max(0, mapSize.x - right);
         const insetBottom = Math.max(0, mapSize.y - bottom);
         const insetLeft = Math.max(0, left);
         
-        container.style.clipPath =`inset(${insetTop}px ` + `${insetRight}px ` + `${insetBottom}px ` + `${insetLeft}px)`;
+        container.style.clipPath = `inset(${insetTop}px ` + `${insetRight}px ` + `${insetBottom}px ` + `${insetLeft}px)`;
         container.style.webkitClipPath = container.style.clipPath;
       }
-
+      
       currentClipUpdateHandler = updateClip;
-
       map.on("move zoom viewreset resize", currentClipUpdateHandler);
       tileLayer.on("load", updateClip);
-      // レイヤー追加直後にも実行
+      
       requestAnimationFrame(updateClip);
     }
+        
     
     // -------------------------------------------------------------------
     // モザイク登録レスポンスからsearchidを取得
@@ -277,19 +268,15 @@ function setupPanelEvents(map) {
     // -------------------------------------------------------------------
     // モザイク登録レスポンスからTileJSONリンクを取得
     // -------------------------------------------------------------------
-    function getMosaicTileJsonLink(
-      registrationResult
-    ) {
-      if (!registrationResult ||　!Array.isArray(registrationResult.links)) {
+    function getMosaicTileJsonLink(registrationResult) {
+      if (!registrationResult || !Array.isArray(registrationResult.links)) {
         return null;
       }
-      const tileJsonLink =　registrationResult.links.find(function(link) {
-          return link.rel === "tilejson";
-          }
-        );
-      return tileJsonLink
-        ? tileJsonLink.href
-        : null;
+      const tileJsonLink = registrationResult.links.find(function(link) {
+        return link.rel === "tilejson";
+        }
+      );
+      return tileJsonLink ? tileJsonLink.href : null;
     }
     
     // ===================================================================
@@ -677,7 +664,7 @@ function setupPanelEvents(map) {
              */
             bounds: leafletBboxBounds,
             noWrap: true,
-            keepBu  ffer: 2,
+            keepBuffer: 2,
             updateWhenIdle: false,
             updateWhenZooming: false,
             attribution: "© Microsoft Planetary Computer"
@@ -703,9 +690,8 @@ function setupPanelEvents(map) {
             successMessageShown = true;
             btnFetchSatellite.textContent = "Fetch Satellite Image";
             alert("BBoxモザイク画像を表示しました。\n\n" + `読込方式: ${satellite}\n` + `表示タイプ: ${imgType}\n` + `検索範囲: BBox\n` + `選択Municipio数: ` + window.selectedMunicipios.length);
-            }
           }
-        );
+        });
         
         currentSatelliteLayer.on("tileerror", function(tileEvent) {
           failedTileCount += 1;
