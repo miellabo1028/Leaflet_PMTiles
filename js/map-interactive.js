@@ -284,6 +284,13 @@ window.selectedMunicipios = [];
           const bestItem = stacResult.features[0];
           console.log("[STAC] Best Scene Item Found:", bestItem);
 
+          // STAC Itemで利用可能なアセット名を取得
+          const availableAssets = Object.keys(bestItem.assets || {});
+          console.log("[Available Assets]", availableAssets);
+          // デバッグ用
+          window.debugBestItem = bestItem;
+          window.debugAvailableAssets = availableAssets;
+
           // <Direct version & Get version ?>
           // 【確定版】CORS(405)を回避して安全にSASトークンを取得するプロセス
           // =================================================================
@@ -378,6 +385,11 @@ window.selectedMunicipios = [];
           btnFetchSatellite.textContent = "Generating Tiles...";
 
           let tileJsonUrl = "";
+          const tileJsonParams = new URLSearchParams();
+          tileJsonParams.set("collection", collectionId);
+          tileJsonParams.set("item", bestItem.id);
+          // RGB、NDVIなどで共通使用するURLパラメータ
+          
           // const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x";
         //  let queryParams = "";
           
@@ -396,12 +408,6 @@ window.selectedMunicipios = [];
           // -----------------------------------------------------
           
           if (imgType === "rgb") {
-            const tileJsonParams = new URLSearchParams();
-            
-            tileJsonParams.set("collection", collectionId);
-            tileJsonParams.set("item", bestItem.id);
-            
-            // True Colorのバンド割当て
             if (satellite === "sentinel-2") { 
               // Sentinel-2 True Color
               const rgbAssets = ["B04", "B03", "B02"];
@@ -434,14 +440,13 @@ window.selectedMunicipios = [];
               tileJsonParams.append("rescale", "0,0.3");
             }
             tileJsonParams.set("tile_format", "png");
-            
             tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/" + "WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
-          }
+                      
           // -----------------------------------------------------
           // NDVI, NDWI, NDMI, SAVI, NBRI
           // -----------------------------------------------------
     
-          else {
+          } else {
             // 各種インデックスの演算式（URLSearchParamsが自動で「+」を「%2B」に安全にエンコードしてくれます）
             let indexAssets = [];
             let expr = "";
@@ -508,11 +513,6 @@ window.selectedMunicipios = [];
             throw new Error("指数計算に必要なアセットがありません: " + missingAssets.join(", ") + "\n\n利用可能なアセット:\n" + availableAssets.join(", "));
           }
             
-          // const tileJsonParams = new URLSearchParams();
-
-          // tileJsonParams.set("collection", collectionId);
-          // tileJsonParams.set("item", bestItem.id);
-   
           // ---------------------------------------------------
           // URLパラメータ設定
           // ---------------------------------------------------
@@ -526,14 +526,9 @@ window.selectedMunicipios = [];
           tileJsonParams.set("rescale", "-1,1");
           tileJsonParams.set("tile_format", "png");
           
-          // tileJsonUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/` + `${collectionId}/` + `${bestItem.id}/tilejson.json?` + `expression=${encodeURIComponent(expr)}` + `&colormap_name=viridis` + `&rescale=-1,1`;
           tileJsonUrl = "https://planetarycomputer.microsoft.com/api/data/v1/item/WebMercatorQuad/tilejson.json?" + tileJsonParams.toString();
-              // + `collection=${encodeURIComponent(collectionId)}`
-              // + `&item=${encodeURIComponent(bestItem.id)}`
-              // + `&expression=${encodeURIComponent(expr)}`
-              // + `&colormap_name=viridis`
-              // + `&rescale=-1,1`;
-          }
+        }
+
         // -----------------------------------------------------
         // デバッグ情報
         // -----------------------------------------------------
