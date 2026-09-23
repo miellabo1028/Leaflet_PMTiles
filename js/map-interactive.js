@@ -407,7 +407,8 @@ function setupPanelEvents(map) {
         // searchidを取得し、複数シーンを仮想モザイク化する。
         // =============================================================
         btnFetchSatellite.textContent = "Registering Mosaic...";
-        const mosaicRegisterUrl = "https://planetarycomputer.microsoft.com/" + "api/data/v1/mosaic/register";
+        const mosaicRegisterUrl = "https://solitary-frog-6558.huh-fujita.workers.dev/";
+        //const mosaicRegisterUrl = "https://planetarycomputer.microsoft.com/" + "api/data/v1/mosaic/register";
         
         const mosaicSearchBody = {
           collections: [collectionId],
@@ -455,12 +456,13 @@ function setupPanelEvents(map) {
           const errorText = await mosaicRegisterResponse.text();
           console.error("[Mosaic Register Error]",
             {
+              url: mosaicRegisterUrl,
               status: mosaicRegisterResponse.status,
               statusText: mosaicRegisterResponse.statusText,
               response: errorText
             }
           );
-          throw new Error("モザイク検索の登録に失敗しました。" + ` HTTP ${mosaicRegisterResponse.status}`);
+          throw new Error("モザイク検索の登録に失敗しました。" + ` HTTP ${mosaicRegisterResponse.status}` + `\n${errorText.slice(0, 500)}`);
         }
         
         const mosaicRegistration = await mosaicRegisterResponse.json();
