@@ -302,8 +302,9 @@ window.selectedMunicipios = [];
           
           // 💡 2. 安全なGETメソッドで、このコンテナ専用のアクセス許可トークンを1通だけ要求します
           // GETなので、ブラウザのOPTIONS（405エラー）に引っかからず瞬時に取得できます
-          const tokenApiUrl = `https://microsoft.com{storageAccount}/${containerName}`;
-        
+          // const tokenApiUrl = `https://microsoft.com{storageAccount}/${containerName}`;
+          const tokenApiUrl = `https://planetarycomputer.microsoft.com/api/sas/v1/token/{collectionId}`;
+          
           const tokenResponse = await fetch(tokenApiUrl, { method: "GET" });
           if (!tokenResponse.ok) {
             throw new Error(`ストレージトークンの取得に失敗しました。Status: ${tokenResponse.status}`);
