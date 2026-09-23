@@ -414,7 +414,9 @@ window.selectedMunicipios = [];
                   + `&item=${encodeURIComponent(bestItem.id)}`
                   + `&assets=SR_B4`
                   + `&assets=SR_B3`
-                  + `&assets=SR_B2`;
+                  + `&assets=SR_B2`
+                  + `&rescale=0,3000`
+                  + `&color_formula=Gamma RGB 3.0`;
             }
           }
           // -----------------------------------------------------
