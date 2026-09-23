@@ -288,36 +288,86 @@ window.selectedMunicipios = [];
 
         // 5. 【最適化】ローカルDockerをバイパスし、Microsoft公式の動的タイル配信サービスを利用
         // 💡 これにより、ローカルでのDockerの起動不調や、社内LANのローカル通信ブロックを100%回避できます
-        const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/{z}/{x}/{y}.png";
-          let tileUrl = "";
+          const microsoftTileBase = "https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x";
+        //  let queryParams = "";
+          
+        // 1. 必須パラメータを初期設定
+          let params = new URLSearchParams({
+            collection: collectionID,
+            item: bestItem.id
+          });
           
           if (imgType === "rgb") {
-            // True Color用のバンド指定と自動カラー補正パラメータ
-            const assets = (satellite === "sentinel-2") ? "assets=B04&assets=B03&assets=B02" : "assets=red&assets=green&assets=blue";
-            const colorFormula = "color_formula=Gamma+RGB+3.5+Sat+1.2+Sigmoidal+RGB+15+0.35"; 
-            tileUrl = `${microsoftTileBase}?collection=${collectionId}&item=${bestItem.id}&${assets}&${colorFormula}`;
-          } else {
-            // NDVIなどのインデックス演算処理（Microsoft側のサーバーに数式を投げて動的にタイル化させます）
-            const expression = (satellite === "sentinel-2") ? "expression=(B08-B04)/(B08%2BB04)" : "expression=(nir08-red)/(nir08%2Bred)";
-            tileUrl = `${microsoftTileBase}?collection=${collectionId}&item=${bestItem.id}&${expression}&colormap_name=viridis&rescale=-1,1`;
+            // True Colorのバンド割当て
+            if (satellite === "sentinel-2") {
+              // Sentinel-2は複数のassetsパラメータを並べる必要があるため、個別に追加
+              params.append("assets", "B04");
+              params.append("assets", "B03");
+              params.append("assets", "B02");
+            } else {
+              params.append("assets", "red");
+              params.append("assets", "green");
+              params.append("assets", "blue");
+            }
+            // カラーフォーミュラ
+            params.set("color_formula", "Gamma RGB 3.5 Sat 1.2 Sigmoidal RGB 15 0.35");
+    
+            } else {
+              // 各種インデックスの演算式（URLSearchParamsが自動で「+」を「%2B」に安全にエンコードしてくれます）
+              let expr = "";
+              if (satellite === "sentinel-2") {
+                if (imgType === "ndvi") expr = "(B08-B04)/(B08+B04)";
+                else if (imgType === "ndwi") expr = "(B03-B08)/(B03+B08)";
+                else if (imgType === "ndmi") expr = "(B08-B11)/(B08+B11)";
+                else if (imgType === "savi") expr = "1.5*(B08-B04)/(B08+B04+0.5)";
+                else if (imgType === "nbri") expr = "(B08-B12)/(B08+B12)";
+            } else { // Landsatの場合
+              if (imgType === "ndvi") expr = "(nir08-red)/(nir08+red)";
+              else if (imgType === "ndwi") expr = "(green-nir08)/(green+nir08)";
+              else if (imgType === "ndmi") expr = "(nir08-swir16)/(nir08+swir16)";
+              else if (imgType === "savi") expr = "1.5*(nir08-red)/(nir08+red+0.5)";
+              else if (imgType === "nbri") expr = "(nir08-swir22)/(nir08+swir22)";
           }
+    
+          params.set("expression", expr);
+          params.set("colormap_name", "viridis");
+          params.set("rescale", "-1,1");
+        }
+          
+        // 最終的なURL定義（tileUrlをここで正しく宣言）
+        const tileUrl = `${microsoftTileBase}?${params.toString()}`;
+        console.log("[Direct Tile Stream] Generated URL:", tileUrl);
+        
+        // 古い衛星レイヤーがすでにマップにあれば事前に削除して重複を防ぐ
+        if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+          map.removeLayer(currentSatelliteLayer);
+        }
+          
+          // 結合用の最終URLをビルド
+          // const tileUrl = ${microsoftTileBase}?
+          //  collection=${collectionId}&item=${bestItem.id}&${queryParams};
+          
+          // if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+          //  map.removeLayer(currentSatelliteLayer);
+          // }
 
-          // 6. 古い衛星レイヤーを消去してマップへ追加
-          if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
-            map.removeLayer(currentSatelliteLayer);
-          }
-
+          // マップへ描画流し込み
           currentSatelliteLayer = L.tileLayer(tileUrl, {
             pane: "sentinelPane",
             maxZoom: 19,
             attribution: "© Microsoft Planetary Computer"
           }).addTo(map);
-
-          console.log("[Planetary Computer Direct] Layer added:", tileUrl);
+          
+          console.log("[Direct Tile Stream] Tile rendering initiated.");
           alert("Microsoftのサーバーから直接、衛星画像の描画に成功しました！");
+          
+          // 6. 古い衛星レイヤーを消去してマップへ追加
+          // if (currentSatelliteLayer && map.hasLayer(currentSatelliteLayer)) {
+          //  map.removeLayer(currentSatelliteLayer);
+          // }
 
         } catch (error) {
-          console.error("[Direct Fetch Error] Details:", error);
+          console.error("[Direct Stream Error] Details:", error);
           alert(`エラーが発生しました:\n${error.message}`);
         } finally {
           btnFetchSatellite.disabled = false;
