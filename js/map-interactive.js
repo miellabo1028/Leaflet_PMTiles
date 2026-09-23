@@ -376,14 +376,14 @@ window.selectedMunicipios = [];
         //  let queryParams = "";
           
         // 1. 必須パラメータを初期設定
-          // let params = new URLSearchParams({
-          //  collection: collectionId,
-          //  item: bestItem.id
-          // });
           let params = new URLSearchParams({
             collection: collectionId,
-            item: signedItem.id // 署名付きのID
+            item: bestItem.id
           });
+          // let params = new URLSearchParams({
+          //  collection: collectionId,
+          //  item: signedItem.id // 署名付きのID
+         // });
           
           if (imgType === "rgb") {
             // True Colorのバンド割当て
