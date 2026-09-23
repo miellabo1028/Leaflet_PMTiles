@@ -453,6 +453,19 @@ window.selectedMunicipios = [];
             attribution: "© Microsoft Planetary Computer"
           }).addTo(map);
           
+          // =================================================================
+          // 💡 【重要・追加】マップの表示位置を、衛星画像の撮影範囲に自動移動させる
+          // =================================================================
+          if (bestItem.bbox) {
+            // STACの標準BBox: [西(minX), 南(minY), 東(maxX), 北(maxY)]
+            const b = bestItem.bbox;
+            // LeafletのLatLngBoundsフォーマット: [[南, 西], [北, 東]] に変換
+            const satelliteBounds = [[b[1], b[0]], [b[3], b[2]]];
+          
+            console.log("[Map View] Flying to satellite scene bounds:", satelliteBounds);
+            map.flyToBounds(satelliteBounds, { padding:[20, 20], duration: 1.5 });
+          }
+
           console.log("[Direct Tile Stream] Tile rendering initiated.");
           alert("Microsoftのサーバーから直接、衛星画像の描画に成功しました！");
           
