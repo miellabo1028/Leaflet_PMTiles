@@ -115,27 +115,31 @@ window.selectedMunicipios = [];
       <button id="btn-fetch-satellite" class="gesat-btn" style="width: 100%; background-color: #0288d1; color: white; border: none; padding: 6px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Fetch Satellite Image</button>
 
       <!-- Add table of satellite imageries -->
-      <div id="mosaic-scenes-panel" style="margin-top: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; overflow: hidden;">
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 5px; background: #f3f3f3; border-bottom: 1px solid #ddd;">
-          <span id="mosaic-scenes-title" style="font-size: 10px; font-weight: bold; color: #333;">
+      <div id="mosaic-scenes-panel" style="width: 268px; max-width: 100%; margin-top: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; overflow: hidden; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 4px; background: #f3f3f3; border-bottom: 1px solid #ddd;">
+          <span id="mosaic-scenes-title" style="font-size: 9px; font-weight: bold; color: #333;">
             Used Scenes (0)</span>
-          <button id="btn-download-scenes" type="button" style="padding: 2px 5px; border: 0; border-radius: 3px; background: #607d8b; color: white; font-size: 9px; cursor: pointer;">
+          <button id="btn-download-scenes" type="button" style="padding: 2px 4px; border: 0; border-radius: 3px; background: #607d8b; color: white; font-size: 8px; cursor: pointer;">
             CSV</button>
         </div>
         
-        <div style="max-height: 96px; overflow-y: auto; overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9px;">
+        <div style="width: 100%; max-height: 100px; overflow-y: auto; overflow-x: hidden;">
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 8px;">
             <thead style="position: sticky; top: 0; z-index: 1; background: #fafafa;">
               <tr>
-                <th style="width: 66%; padding: 3px; text-align: left; border-bottom: 1px solid #ddd;">
+                <th style="width: 45%; padding: 2px; text-align: left; border-bottom: 1px solid #ddd;">
                   Scene</th>
-                <th style="width: 34%; padding: 3px; text-align: left; border-bottom: 1px solid #ddd;">
+                <th style="width: 25%; padding: 2px; text-align: left; border-bottom: 1px solid #ddd;">
                   Date</th>
+                <th style="width: 17%; padding: 2px; text-align: right; border-bottom: 1px solid #bbb;">
+                  Cloud</th>
+                <th style="width: 13%; padding: 2px; text-align: right; border-bottom: 1px solid #bbb;">
+                  Tiles</th>
               </tr>
             </thead>
             <tbody id="mosaic-scenes-body">
               <tr>
-                <td colspan="2" style="padding: 8px 4px; color: #777; text-align: center;">
+                <td colspan="4" style="padding: 7px 3px; color: #777; text-align: center;">
                   No scenes</td>
               </tr>
             </tbody>
@@ -476,8 +480,7 @@ function setupPanelEvents(map) {
         + "api/data/v1/mosaic/"
         + `${encodeURIComponent(searchId)}/`
         + "tiles/WebMercatorQuad/"
-        + `${coords.z}/${coords.x}/${coords.y}/assets?`
-        + assetParams.toString();
+        + `${coords.z}/${coords.x}/${coords.y}/assets`;
       console.log("[Mosaic Tile Assets Request]", tileKey, assetsUrl);
         
     try {
@@ -490,6 +493,10 @@ function setupPanelEvents(map) {
 
       if (!response.ok) {
         const errorText = await response.text();
+
+        // 失敗したタイルは再試行できるように戻す
+        inspectedMosaicTiles.delete(tileKey);
+        
         console.warn("[Mosaic Tile Assets Error]", {
           tile: tileKey,
           status: response.status,
@@ -543,6 +550,8 @@ function setupPanelEvents(map) {
       printUsedMosaicScenes();
 
     } catch (error) {
+      inspectedMosaicTiles.delete(tileKey);
+      
       console.warn("[Mosaic Tile Assets Fetch Failed]",
         {
           tile: tileKey,
@@ -620,8 +629,27 @@ function setupPanelEvents(map) {
         // -------------------------------------------------------------
         // Scene ID
         // -------------------------------------------------------------
-        sceneCell.textContent = scene.sceneId || "-";
+        //sceneCell.textContent = scene.sceneId || "-";
+        function getShortSceneId(sceneId) {
+          if (!sceneId) {
+            return "-";
+          }
+          const text = String(sceneId);
+          // Sentinel-2 Item ID
+          // 日付とMGRSタイル部分を優先して表示
+          const sentinelMatch = text.match(/(S2[A-Z]?)_.*?_(\d{8}T\d{6}).*?_(T\d{2}[A-Z]{3})/i);
+          if (sentinelMatch) {
+            return (`${sentinelMatch[1]} ` + `${sentinelMatch[2].slice(0, 8)} ` + `${sentinelMatch[3]}`);
+          }
+          // 長いIDの一般的な短縮
+          if (text.length > 24) {
+            return (text.slice(0, 11) + "..." + text.slice(-9));
+          }
+          return text;
+        }
+        sceneCell.textContent = getShortSceneId(scene.sceneId);
         sceneCell.title = scene.sceneId || "";
+
         sceneCell.style.padding = "3px";
         sceneCell.style.borderBottom = "1px solid #eee";
         sceneCell.style.whiteSpace = "nowrap";
@@ -630,7 +658,7 @@ function setupPanelEvents(map) {
         // -------------------------------------------------------------
         // Date
         // -------------------------------------------------------------
-        dateCell.textContent = scene.date || "-";
+        dateCell.textContent = scene.date ? scene.date.slice(2) : "-";
         dateCell.title = scene.datetime || scene.date || "";
         dateCell.style.padding = "3px";
         dateCell.style.borderBottom = "1px solid #eee";
