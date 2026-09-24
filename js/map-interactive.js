@@ -214,6 +214,7 @@ function setupPanelEvents(map) {
     //
     // clip-pathを使って、表示上も矩形範囲へ切り抜きます。
     // -------------------------------------------------------------------
+    
     function applyBboxClipToLayer(map, tileLayer, leafletBounds) {
       // 前回登録したイベントを解除
       if (currentClipUpdateHandler) {
@@ -726,10 +727,21 @@ function setupPanelEvents(map) {
         
         currentSatelliteLayer.addTo(map);
         
+        //一時的？
+        const satelliteContainer = currentSatelliteLayer.getContainer();
+        if (satelliteContainer) {
+          satelliteContainer.style.clipPath = "none";
+          satelliteContainer.style.webkitClipPath = "none";
+          satelliteContainer.style.display = "";
+          satelliteContainer.style.visibility = "visible";
+          satelliteContainer.style.opacity = "1";
+        }
+        
         // =============================================================
         // 10. BBoxで画面上のタイルを切り抜く
         // =============================================================
-        applyBboxClipToLayer(map, currentSatelliteLayer, leafletBboxBounds);
+        // 一時的に無効化して表示確認
+        //applyBboxClipToLayer(map, currentSatelliteLayer, leafletBboxBounds);
         
         // =============================================================
         // 11. BBoxへ移動
