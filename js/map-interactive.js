@@ -118,7 +118,7 @@ window.selectedMunicipios = [];
       <div id="mosaic-scenes-panel" style="width: 268px; max-width: 100%; margin-top: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; overflow: hidden; box-sizing: border-box;">
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 4px; background: #f3f3f3; border-bottom: 1px solid #ddd;">
           <span id="mosaic-scenes-title" style="font-size: 9px; font-weight: bold; color: #333;">
-            Used Scenes (0)</span>
+            Scene Candidates (0)</span>
           <button id="btn-download-scenes" type="button" style="padding: 2px 4px; border: 0; border-radius: 3px; background: #607d8b; color: white; font-size: 8px; cursor: pointer;">
             CSV</button>
         </div>
@@ -453,164 +453,140 @@ function setupPanelEvents(map) {
     }
 
     // -------------------------------------------------------------------
-    // モザイクタイルで実際に使用されたシーンを取得
+    // Web Mercator XYZタイルの範囲を緯度経度BBoxへ変換
+    // -------------------------------------------------------------------
+    function tileCoordsToLatLngBounds(coords) {
+      const z = coords.z;
+      const x = coords.x;
+      const y = coords.y;
+      const n = Math.pow(2, z);
+      const west = x / n * 360 - 180;
+      const east = (x + 1) / n * 360 - 180;
+      
+      function tileYToLatitude(tileY) {
+        const mercatorY = Math.PI * (1 - 2 * tileY / n);
+        return (180 / Math.PI * Math.atan(Math.sinh(mercatorY)));
+      }
+      const north = tileYToLatitude(y);
+      const south = tileYToLatitude(y + 1);
+      return L.latLngBounds([south, west], [north, east]);
+    }
+
+    // -------------------------------------------------------------------
+    // STAC ItemのBBoxをLeaflet Boundsへ変換
+    // -------------------------------------------------------------------
+    function getStacItemBounds(item) {
+      if (!item || !Array.isArray(item.bbox) || item.bbox.length < 4) {
+        return null;
+      }
+      const bbox = item.bbox;
+      return L.latLngBounds([bbox[1], bbox[0]], [bbox[3], bbox[2]]);
+    }
+
+    // -------------------------------------------------------------------
+    // 表示タイルとSTAC Itemの空間交差から使用候補シーンを記録
+    //
+    // Planetary Computerのmosaic /assets APIが422を返すため、
+    // STAC検索結果と表示タイル範囲を使って候補を判定する。
     // -------------------------------------------------------------------
     async function inspectMosaicTileScenes({
       searchId,
       collectionId,
       coords
     }) {
-      if (!searchId || !collectionId || !coords) {
-        console.warn("[Mosaic Tile Assets] Missing arguments", {
-          searchId: searchId,
-          collectionId: collectionId,
-          coords: coords
-        });
+      if (!collectionId || !coords) {
         return;
       }
-      const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
-        
-      // 同じタイルを再照会しない
+      
+      const tileKey =  `${coords.z}/${coords.x}/${coords.y}`;
       if (inspectedMosaicTiles.has(tileKey)) {
         return;
       }
-
+      
       inspectedMosaicTiles.add(tileKey);
-
-      // URLオブジェクトで確実にcollectionを追加
-      const assetsUrlObject = new URL(
-        "https://planetarycomputer.microsoft.com/"
-        + "api/data/v1/mosaic/"
-        + encodeURIComponent(searchId)
-        + "/tiles/WebMercatorQuad/"
-        + coords.z
-        + "/"
-        + coords.x
-        + "/"
-        + coords.y
-        + "/assets"
-      );
-
-      assetsUrlObject.searchParams.set("collection", collectionId);
+      const tileBounds = tileCoordsToLatLngBounds(coords);
+      const stacItems = Array.isArray(window.debugStacItems) ? window.debugStacItems : [];
       
-      const assetsUrl = assetsUrlObject.toString();
+      if (stacItems.length === 0) {
+        console.warn("[Mosaic Scene Inspection] " + "No STAC preview items are available.");
+        return;
+      }
       
-      console.log("[Mosaic Tile Assets Request]", {
+      // この表示タイルと空間的に交差するシーン
+      const intersectingItems = stacItems.filter(function(item) {
+        const itemBounds = getStacItemBounds(item);
+        return (itemBounds && itemBounds.intersects(tileBounds));
+      });
+      
+      if (intersectingItems.length === 0) {
+        console.debug("[Mosaic Scene Inspection] " + "No STAC scene intersects tile:", tileKey);
+        return;
+      }
+      
+      /*
+       * モザイク登録時と同じ優先順位で並べ替える。
+       *
+       * 1. 雲量の少ない順
+       * 2. 同程度なら新しい順
+       */
+      intersectingItems.sort(function(itemA, itemB) {
+        const cloudA = Number(itemA.properties?.["eo:cloud_cover"]);
+        const cloudB = Number(itemB.properties?.["eo:cloud_cover"]);
+        const normalizedCloudA = Number.isFinite(cloudA) ? cloudA : Number.POSITIVE_INFINITY;
+        const normalizedCloudB = Number.isFinite(cloudB) ? cloudB : Number.POSITIVE_INFINITY;
+        
+        // 雲量が異なる場合は、雲量の少ないシーンを優先
+        if (normalizedCloudA !== normalizedCloudB) {
+          return (normalizedCloudA - normalizedCloudB);
+        }
+
+        // 雲量が同じ場合は、新しい撮影日時を優先
+        const dateA = itemA.properties?.datetime || "";
+        const dateB = itemB.properties?.datetime || "";
+        
+        // 新しい日付を先にする
+        return dateB.localeCompare(dateA);
+      });
+      
+      /*
+       * モザイクの最優先候補を、この表示タイルで
+       * 使用された候補シーンとして記録する。
+       */
+      const selectedItem = intersectingItems[0];
+      if (!selectedItem || !selectedItem.id) {
+        return;
+      }
+      
+      const properties = selectedItem.properties || {};
+      const sceneKey = `${collectionId}:${selectedItem.id}`;
+      if (!usedMosaicScenes.has(sceneKey)) {
+        usedMosaicScenes.set(sceneKey, {
+          id: selectedItem.id,
+          collection: collectionId,
+          datetime: properties.datetime || null,
+          cloudCover: properties["eo:cloud_cover"] ?? null,
+          tileCount: 0,
+          tileCoordinates: new Set()
+        });
+      }
+      
+      const savedScene = usedMosaicScenes.get(sceneKey);
+      if (!savedScene.tileCoordinates.has(tileKey)) {
+        savedScene.tileCoordinates.add(tileKey);
+        savedScene.tileCount += 1;
+      }
+      
+      console.log("[Mosaic Tile Scene Candidate]", {
         tile: tileKey,
-        collectionId: collectionId,
-        url: assetsUrl,
-        parameters: Array.from(assetsUrlObject.searchParams.entries())
+        selectedScene: selectedItem.id,
+        datetime: properties.datetime || null,
+        cloudCover: properties["eo:cloud_cover"] ?? null,
+        intersectingSceneCount: intersectingItems.length,
+        searchId: searchId
       });
-        
-      //? const assetParams = new URLSearchParams();
-      //? assetParams.set("collection", collectionId);
-        
-      //const assetsUrl =
-      //  "https://planetarycomputer.microsoft.com/"
-      //  + "api/data/v1/mosaic/"
-      //  + `${encodeURIComponent(searchId)}/`
-      //  + "tiles/WebMercatorQuad/"
-      //  + `${coords.z}/${coords.x}/${coords.y}/assets`;
-      //console.log("[Mosaic Tile Assets Request]", tileKey, assetsUrl);
-        
-    try {
-      const response = await fetch(assetsUrl, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json"
-        }
-      });
-
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        console.warn("[Mosaic Tile Assets Error]", {
-          tile: tileKey,
-          status: response.status,
-          statusText: response.statusText,
-          response: responseText,
-          url: assetsUrl,
-          collectionId: collectionId
-        });
-        
-        /*
-         * 失敗したタイルは、後で再試行できるよう
-         * inspectedMosaicTilesから削除する。
-         */
-        inspectedMosaicTiles.delete(tileKey);
-        return;
-      }
-
-      let assetResult = null;
-
-      try {
-        assetResult = JSON.parse(responseText);
-      } catch (parseError) {
-        console.warn("[Mosaic Tile Assets JSON Parse Error]", {
-          tile: tileKey,
-          response: responseText,
-          error: parseError
-        });
-        inspectedMosaicTiles.delete(tileKey);
-        return;
-      }
-
-      // const assetResult = await response.json();
-      console.log("[Mosaic Tile Assets Result]", tileKey, assetResult);
-
-      const tileSceneRecords = new Map();
-        
-      extractSceneRecords(assetResult, tileSceneRecords, collectionId);
-      console.log("[Mosaic Tile Extracted Scenes]", tileKey, Array.from(tileSceneRecords.values()));
-        
-      tileSceneRecords.forEach(
-        function(sceneRecord, sceneKey) {
-          if (!usedMosaicScenes.has(sceneKey)) {
-            usedMosaicScenes.set(
-              sceneKey,
-              {
-                id: sceneRecord.id,
-                collection: sceneRecord.collection,
-                datetime: sceneRecord.datetime,
-                cloudCover: sceneRecord.cloudCover,
-                tileCount: 0,
-                tileCoordinates: new Set()
-              }
-            );
-          }
-            
-          const savedScene = usedMosaicScenes.get(sceneKey);
-            
-          if (!savedScene.tileCoordinates.has(tileKey)) {
-            savedScene.tileCoordinates.add(tileKey);
-            savedScene.tileCount += 1;
-          }
-
-          if (savedScene.datetime === null && sceneRecord.datetime !== null) {
-            savedScene.datetime = sceneRecord.datetime;
-          }
-
-          if (savedScene.cloudCover === null && sceneRecord.cloudCover !== null) {
-             savedScene.cloudCover = sceneRecord.cloudCover;
-          }
-        }
-      );
-        
+      
       printUsedMosaicScenes();
-
-    } catch (error) {
-      console.warn("[Mosaic Tile Assets Fetch Failed]",
-        {
-          tile: tileKey,
-          error: error,
-          url: assetsUrl,
-          collectionId: collectionId
-        }
-      );
-      // 通信エラー時も再試行可能にする
-      inspectedMosaicTiles.delete(tileKey);
     }
-  }
       
     // -------------------------------------------------------------------
     // 使用シーン一覧をConsoleへ表示
@@ -648,7 +624,7 @@ function setupPanelEvents(map) {
       }
       
       const sceneList = getUsedMosaicSceneArray();
-      mosaicScenesTitle.textContent = `Used Scenes (${sceneList.length})`;
+      mosaicScenesTitle.textContent = `Scene Candidates (${sceneList.length})`;
       mosaicScenesBody.innerHTML = "";
       
       // ---------------------------------------------------------------
@@ -830,7 +806,7 @@ function setupPanelEvents(map) {
       const now = new Date();
       const timestamp = now.toISOString().replace(/[:.]/g, "-");
       link.href = blobUrl;
-      link.download = `gesat-mosaic-scenes-${timestamp}.csv`;
+      link.download = `gesat-mosaic-scenes-candidates-${timestamp}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();
