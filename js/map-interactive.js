@@ -592,10 +592,13 @@ function setupPanelEvents(map) {
       mosaicScenesTitle.textContent = `Used Scenes (${sceneList.length})`;
       mosaicScenesBody.innerHTML = "";
       
+      // ---------------------------------------------------------------
+      // シーンがまだ取得されていない場合
+      // ---------------------------------------------------------------
       if (sceneList.length === 0) {
         const row = document.createElement("tr");
         const cell = document.createElement("td");
-        cell.colSpan = 2;
+        cell.colSpan = 4;
         cell.textContent = "No scenes";
         cell.style.padding = "8px 4px";
         cell.style.textAlign = "center";
@@ -605,26 +608,61 @@ function setupPanelEvents(map) {
         return;
       }
 
+      // ---------------------------------------------------------------
+      // シーン一覧を行として追加
+      // ---------------------------------------------------------------
       sceneList.forEach(function(scene) {
         const row = document.createElement("tr");
         const sceneCell = document.createElement("td");
         const dateCell = document.createElement("td");
-        sceneCell.textContent = scene.sceneId;
-        sceneCell.title = scene.sceneId;
+        const cloudCell = document.createElement("td");
+        const tilesCell = document.createElement("td");
+        // -------------------------------------------------------------
+        // Scene ID
+        // -------------------------------------------------------------
+        sceneCell.textContent = scene.sceneId || "-";
+        sceneCell.title = scene.sceneId || "";
         sceneCell.style.padding = "3px";
         sceneCell.style.borderBottom = "1px solid #eee";
         sceneCell.style.whiteSpace = "nowrap";
         sceneCell.style.overflow = "hidden";
         sceneCell.style.textOverflow = "ellipsis";
+        // -------------------------------------------------------------
+        // Date
+        // -------------------------------------------------------------
         dateCell.textContent = scene.date || "-";
-        dateCell.title = [`Date: ${scene.date || "-"}`, `Cloud: ${
-          scene.cloudCover ?? "-" }`, `Tiles: ${
-          scene.renderedTileCount}`].join("\n");
+        dateCell.title = scene.datetime || scene.date || "";
         dateCell.style.padding = "3px";
         dateCell.style.borderBottom = "1px solid #eee";
         dateCell.style.whiteSpace = "nowrap";
+        // -------------------------------------------------------------
+        // Cloud cover
+        // -------------------------------------------------------------
+        const cloudCoverNumber = Number(scene.cloudCover);
+        const hasCloudCover = scene.cloudCover !== null && scene.cloudCover !== undefined && scene.cloudCover !== "" && Number.isFinite(cloudCoverNumber);
+        cloudCell.textContent = hasCloudCover ? `${cloudCoverNumber.toFixed(1)}%` : "-";
+        cloudCell.title = hasCloudCover ? `Cloud cover: ${cloudCoverNumber}%` : "Cloud cover unavailable";
+        cloudCell.style.padding = "3px";
+        cloudCell.style.borderBottom = "1px solid #eee";
+        cloudCell.style.textAlign = "right";
+        cloudCell.style.whiteSpace = "nowrap";
+        // -------------------------------------------------------------
+        // Rendered tile count
+        // -------------------------------------------------------------
+        const renderedTileCount = Number.isFinite(Number(scene.renderedTileCount)) ? Number(scene.renderedTileCount) : 0;
+        tilesCell.textContent = String(renderedTileCount);
+        tilesCell.title = scene.renderedTiles ? `Tiles:\n${scene.renderedTiles}` : "No tile coordinates";
+        tilesCell.style.padding = "3px";
+        tilesCell.style.borderBottom = "1px solid #eee";
+        tilesCell.style.textAlign = "right";
+        tilesCell.style.whiteSpace = "nowrap";
+        // -------------------------------------------------------------
+        // 行へ追加
+        // -------------------------------------------------------------
         row.appendChild(sceneCell);
         row.appendChild(dateCell);
+        row.appendChild(cloudCell);
+        row.appendChild(tilesCell);
         mosaicScenesBody.appendChild(row);
       });
     }
@@ -659,29 +697,40 @@ function setupPanelEvents(map) {
           "collection",
           "datetime",
           "date",
-          "cloud_cover",
+          "cloud_cover_percent",
           "rendered_tile_count",
           "rendered_tiles"
         ]
       ];
       
       sceneList.forEach(function(scene) {
+        // 雲量を数値として整形
+        const cloudCoverNumber = Number(scene.cloudCover);
+        const hasCloudCover = scene.cloudCover !== null && scene.cloudCover !== undefined && scene.cloudCover !== "" && Number.isFinite(cloudCoverNumber);
+        const cloudCoverForCsv = hasCloudCover ? cloudCoverNumber.toFixed(2) : "";
+        // タイル数を数値として整形
+        const renderedTileCountNumber = Number(scene.renderedTileCount);
+        const renderedTileCountForCsv = Number.isFinite(renderedTileCountNumber) ? renderedTileCountNumber : 0;
+        
         csvRows.push([
-          scene.sceneId,
-          scene.collection,
+          scene.sceneId || "",
+          scene.collection || "",
           scene.datetime || "",
           scene.date || "",
-          scene.cloudCover ?? "",
-          scene.renderedTileCount,
-          scene.renderedTiles
+          cloudCoverForCsv,
+          renderedTileCountForCsv,
+          scene.renderedTiles || ""
         ]);
       });
-      
+
+      // CSV値をダブルクォーテーションで囲み、
+      // 値内のダブルクォーテーションをエスケープ
       function escapeCsvValue(value) {
         const text = String(value ?? "");
         return `"${text.replace(/"/g, '""')}"`;
       }
       
+      // Excelで文字化けしにくいようUTF-8 BOMを付加
       const csvText = "\uFEFF" + csvRows
         .map(function(row) {
           return row
@@ -804,7 +853,7 @@ function setupPanelEvents(map) {
         stacParams.set("collections", collectionId);
         stacParams.set("bbox", bbox.join(","));
         stacParams.set("datetime", datetimeRange);
-        stacParams.set("limit", "10");
+        stacParams.set("limit", "100");
         stacParams.set("query", JSON.stringify({
           "eo:cloud_cover": {
             lte: cloudLimit
