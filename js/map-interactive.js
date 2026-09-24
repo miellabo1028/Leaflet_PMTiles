@@ -461,6 +461,11 @@ function setupPanelEvents(map) {
       coords
     }) {
       if (!searchId || !collectionId || !coords) {
+        console.warn("[Mosaic Tile Assets] Missing arguments", {
+          searchId: searchId,
+          collectionId: collectionId,
+          coords: coords
+        });
         return;
       }
       const tileKey = `${coords.z}/${coords.x}/${coords.y}`;
@@ -471,17 +476,42 @@ function setupPanelEvents(map) {
       }
 
       inspectedMosaicTiles.add(tileKey);
-        
-      const assetParams = new URLSearchParams();
-      assetParams.set("collection", collectionId);
-        
-      const assetsUrl =
+
+      // URLオブジェクトで確実にcollectionを追加
+      const assetsUrlObject = new URL(
         "https://planetarycomputer.microsoft.com/"
         + "api/data/v1/mosaic/"
-        + `${encodeURIComponent(searchId)}/`
-        + "tiles/WebMercatorQuad/"
-        + `${coords.z}/${coords.x}/${coords.y}/assets`;
-      console.log("[Mosaic Tile Assets Request]", tileKey, assetsUrl);
+        + encodeURIComponent(searchId)
+        + "/tiles/WebMercatorQuad/"
+        + coords.z
+        + "/"
+        + coords.x
+        + "/"
+        + coords.y
+        + "/assets"
+      );
+
+      assetsUrlObject.searchParams.set("collection", collectionId);
+      
+      const assetsUrl = assetsUrlObject.toString();
+      
+      console.log("[Mosaic Tile Assets Request]", {
+        tile: tileKey,
+        collectionId: collectionId,
+        url: assetsUrl,
+        parameters: Array.from(assetsUrlObject.searchParams.entries())
+      });
+        
+      //? const assetParams = new URLSearchParams();
+      //? assetParams.set("collection", collectionId);
+        
+      //const assetsUrl =
+      //  "https://planetarycomputer.microsoft.com/"
+      //  + "api/data/v1/mosaic/"
+      //  + `${encodeURIComponent(searchId)}/`
+      //  + "tiles/WebMercatorQuad/"
+      //  + `${coords.z}/${coords.x}/${coords.y}/assets`;
+      //console.log("[Mosaic Tile Assets Request]", tileKey, assetsUrl);
         
     try {
       const response = await fetch(assetsUrl, {
@@ -491,28 +521,47 @@ function setupPanelEvents(map) {
         }
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      const responseText = await response.text();
 
-        // 失敗したタイルは再試行できるように戻す
-        inspectedMosaicTiles.delete(tileKey);
-        
+      if (!response.ok) {
         console.warn("[Mosaic Tile Assets Error]", {
           tile: tileKey,
           status: response.status,
-          response: errorText,
-          url: assetsUrl
-          }
-        );
+          statusText: response.statusText,
+          response: responseText,
+          url: assetsUrl,
+          collectionId: collectionId
+        });
+        
+        /*
+         * 失敗したタイルは、後で再試行できるよう
+         * inspectedMosaicTilesから削除する。
+         */
+        inspectedMosaicTiles.delete(tileKey);
         return;
       }
 
-      const assetResult = await response.json();
+      let assetResult = null;
+
+      try {
+        assetResult = JSON.parse(responseText);
+      } catch (parseError) {
+        console.warn("[Mosaic Tile Assets JSON Parse Error]", {
+          tile: tileKey,
+          response: responseText,
+          error: parseError
+        });
+        inspectedMosaicTiles.delete(tileKey);
+        return;
+      }
+
+      // const assetResult = await response.json();
       console.log("[Mosaic Tile Assets Result]", tileKey, assetResult);
 
       const tileSceneRecords = new Map();
         
       extractSceneRecords(assetResult, tileSceneRecords, collectionId);
+      console.log("[Mosaic Tile Extracted Scenes]", tileKey, Array.from(tileSceneRecords.values()));
         
       tileSceneRecords.forEach(
         function(sceneRecord, sceneKey) {
@@ -550,15 +599,16 @@ function setupPanelEvents(map) {
       printUsedMosaicScenes();
 
     } catch (error) {
-      inspectedMosaicTiles.delete(tileKey);
-      
       console.warn("[Mosaic Tile Assets Fetch Failed]",
         {
           tile: tileKey,
           error: error,
-          url: assetsUrl
+          url: assetsUrl,
+          collectionId: collectionId
         }
       );
+      // 通信エラー時も再試行可能にする
+      inspectedMosaicTiles.delete(tileKey);
     }
   }
       
