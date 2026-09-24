@@ -484,6 +484,9 @@ function setupPanelEvents(map) {
         // =============================================================
         btnFetchSatellite.textContent = "Generating Mosaic Tiles...";
         const mosaicParams = new URLSearchParams();
+        
+        // モザイクタイルAPIではcollection指定が必須
+        mosaicParams.set("collection", collectionId);
 
         // PNGタイル
         mosaicParams.set("tile_format", "png");
@@ -624,8 +627,9 @@ function setupPanelEvents(map) {
           throw new Error("モザイクTileJSONにtiles配列がありません。");
         }
         
-        const mosaicTileUrl = mosaicTileJson.tiles[0];
-        console.log("[Mosaic Tile URL]", mosaicTileUrl);
+        const mosaicTileUrl = mosaicTileJson.tiles[0].replace(/&amp;/g, "&");
+        console.log("[Mosaic Raw Tile URL]", mosaicTileJson.tiles[0]);
+        console.log("[Mosaic Normalized Tile URL]", mosaicTileUrl);
         window.debugMosaicTileUrl = mosaicTileUrl;
         
         // =============================================================
