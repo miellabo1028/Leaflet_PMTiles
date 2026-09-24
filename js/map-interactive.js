@@ -113,8 +113,36 @@ window.selectedMunicipios = [];
 
       <!-- Add button of get imagery: 画像取得アクションボタン -->
       <button id="btn-fetch-satellite" class="gesat-btn" style="width: 100%; background-color: #0288d1; color: white; border: none; padding: 6px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">Fetch Satellite Image</button>
-    </div>
-         
+
+      <!-- Add table of satellite imageries -->
+      <div id="mosaic-scenes-panel" style="margin-top: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; overflow: hidden;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 5px; background: #f3f3f3; border-bottom: 1px solid #ddd;">
+          <span id="mosaic-scenes-title" style="font-size: 10px; font-weight: bold; color: #333;">
+            Used Scenes (0)</span>
+          <button id="btn-download-scenes" type="button" style="padding: 2px 5px; border: 0; border-radius: 3px; background: #607d8b; color: white; font-size: 9px; cursor: pointer;">
+            CSV</button>
+        </div>
+        
+        <div style="max-height: 96px; overflow-y: auto; overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9px;">
+            <thead style="position: sticky; top: 0; z-index: 1; background: #fafafa;">
+              <tr>
+                <th style="width: 66%; padding: 3px; text-align: left; border-bottom: 1px solid #ddd;">
+                  Scene</th>
+                <th style="width: 34%; padding: 3px; text-align: left; border-bottom: 1px solid #ddd;">
+                  Date</th>
+              </tr>
+            </thead>
+            <tbody id="mosaic-scenes-body">
+              <tr>
+                <td colspan="2" style="padding: 8px 4px; color: #777; text-align: center;">
+                  No scenes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>         
   </div>
 `;
 
@@ -147,6 +175,11 @@ function setupPanelEvents(map) {
   const sldCloud = document.getElementById("sld-cloud-limit");
   const lblCloud = document.getElementById("lbl-cloud-value");
   const btnFetchSatellite = document.getElementById("btn-fetch-satellite");
+  
+  // For table list of satellite imageries
+  const mosaicScenesTitle = document.getElementById("mosaic-scenes-title");
+  const mosaicScenesBody = document.getElementById("mosaic-scenes-body");
+  const btnDownloadScenes = document.getElementById("btn-download-scenes");
 
   if (!btnSelectMode || !txtSearch || !dropdown || !btnClearSelection) {
     console.error("[GESAT FGB] UI Elements missing inside interactive panel!");
@@ -324,6 +357,32 @@ function setupPanelEvents(map) {
         return;
       }
 
+      // ---------------------------------------------------------------
+      // 文字列として返されたシーンID
+      // ---------------------------------------------------------------
+      if (typeof value === "string") {
+        const text = value.trim();
+        const looksLikeSceneId = /^S2[A-Z0-9_]+$/i.test(text) || /^LC0[89]_[A-Z0-9_]+$/i.test(text) || /^LE0[0-9]_[A-Z0-9_]+$/i.test(text) || /^LT0[0-9]_[A-Z0-9_]+$/i.test(text);
+        if (looksLikeSceneId) {
+          const sceneKey = `${collectionId}:${text}`;
+          if (!records.has(sceneKey)) {
+            records.set(sceneKey, {
+              id: text,
+              collection: collectionId,
+              datetime: null,
+              cloudCover: null,
+              tileCount: 0,
+              tileCoordinates: new Set()
+            });
+          }
+        }
+        return;
+      }
+
+      if (typeof value === "number" || typeof value === "boolean") {
+        return;
+      }
+      
       if (Array.isArray(value)) {
         value.forEach(function(item) {
           extractSceneRecords(item, records, collectionId);
@@ -335,59 +394,58 @@ function setupPanelEvents(map) {
         return;
       }
 
-      /*
-       * Check multiple candidate fields to ensure a certain level of adaptability should the Planetary Computer's response format change.
-       * Planetary Computerのレスポンス形式が変わっても
-       * ある程度対応できるよう、複数の候補フィールドを確認。
-       */
+      // ---------------------------------------------------------------
+      // オブジェクトとして返されたシーン情報
+      // Check multiple candidate fields to ensure a certain level of adaptability should the Planetary Computer's response format change.
+      // Planetary Computerのレスポンス形式が変わってもある程度対応できるよう、複数の候補フィールドを確認。
+      // ---------------------------------------------------------------
       const sceneId = value.id || value.item || value.item_id || value.itemId || value.scene || value.scene_id || value.sceneId || null;
-      const sceneCollection = value.collection || value.collection_id || value.collectionId || collectionId || null;
+      const sceneCollection = value.collection || value.collection_id || value.collectionId || collectionId;
 
-      /*
-       * When it can be determined to be a STAC Item or an object representing an Item.
-       * Ensure that a simple asset name is not mistaken for a scene ID.
-       * STAC Item、またはItemを表すオブジェクトと判断できる場合。
-       * 単なるasset名をシーンIDとして誤認しないようにする。
-       */
-      const looksLikeScene =
-        Boolean(sceneId) &&
-        (
-          Boolean(value.collection) ||
+      if (sceneId) {
+        const sceneIdText = String(sceneId);
+        const looksLikeScene =
+          sceneIdText.startsWith("S2") ||
+          sceneIdText.startsWith("LC") ||
+          sceneIdText.startsWith("LE") ||
+          sceneIdText.startsWith("LT") ||
           Boolean(value.properties) ||
           Boolean(value.datetime) ||
           Boolean(value.assets) ||
           Boolean(value.item) ||
           Boolean(value.item_id) ||
-          Boolean(value.itemId) ||
-          String(sceneId).startsWith("S2") ||
-          String(sceneId).startsWith("LC") ||
-          String(sceneId).startsWith("LE") ||
-          String(sceneId).startsWith("LT")
-        );
-      
-      if (looksLikeScene) {
-        const properties = value.properties || {};
-        const datetime = properties.datetime || value.datetime || null;
-        const cloudCover = properties["eo:cloud_cover"] ?? value["eo:cloud_cover"] ?? value.cloud_cover ?? null;
-        const sceneKey = `${sceneCollection || "unknown"}:${sceneId}`;
-        
-        if (!records.has(sceneKey)) {
-          records.set(sceneKey, {
-            id: String(sceneId),
-            collection: sceneCollection || collectionId,
-            datetime: datetime,
-            cloudCover: cloudCover,
-            tileCount: 0,
-            tileCoordinates: new Set()
-          });
+          Boolean(value.itemId);
+        if (looksLikeScene) {
+          const properties = value.properties || {};
+          const datetime = properties.datetime || value.datetime || null;
+          const cloudCover = properties["eo:cloud_cover"] ?? value["eo:cloud_cover"] ?? value.cloud_cover ?? null;
+          const sceneKey = `${sceneCollection}:${sceneIdText}`;
+          if (!records.has(sceneKey)) {
+            records.set(sceneKey, {
+              id: sceneIdText,
+              collection: sceneCollection,
+              datetime: datetime,
+              cloudCover: cloudCover,
+              tileCount: 0,
+              tileCoordinates: new Set()
+            });
+          }
         }
       }
-      
-      // Recursively check the entire response
-      // レスポンス全体を再帰的に確認
-      Object.values(value).forEach(function(childValue) {
-        extractSceneRecords(childValue, records, collectionId);
-      });
+
+      // ---------------------------------------------------------------
+      // シーンIDがオブジェクトのキーとして返される場合
+      // Object.values()だけではキーを取得できないため、
+      // Object.entries()でキーと値の両方を調査する
+      // ---------------------------------------------------------------
+      Object.entries(value).forEach(
+        function(entry) {
+          const key = entry[0];
+          const childValue = entry[1];
+          extractSceneRecords(key, records, collectionId);
+          extractSceneRecords(childValue, records, collectionId);
+        }
+      );
     }
 
     // -------------------------------------------------------------------
@@ -521,14 +579,69 @@ function setupPanelEvents(map) {
           return (a.datetime || "").localeCompare(b.datetime || "");
         });
     }
+
+    // -------------------------------------------------------------------
+    // パネル内の使用シーン一覧を更新
+    // -------------------------------------------------------------------
+    function renderUsedMosaicScenesTable() {
+      if (!mosaicScenesTitle || !mosaicScenesBody) {
+        return;
+      }
+      
+      const sceneList = getUsedMosaicSceneArray();
+      mosaicScenesTitle.textContent = `Used Scenes (${sceneList.length})`;
+      mosaicScenesBody.innerHTML = "";
+      
+      if (sceneList.length === 0) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 2;
+        cell.textContent = "No scenes";
+        cell.style.padding = "8px 4px";
+        cell.style.textAlign = "center";
+        cell.style.color = "#777";
+        row.appendChild(cell);
+        mosaicScenesBody.appendChild(row);
+        return;
+      }
+
+      sceneList.forEach(function(scene) {
+        const row = document.createElement("tr");
+        const sceneCell = document.createElement("td");
+        const dateCell = document.createElement("td");
+        sceneCell.textContent = scene.sceneId;
+        sceneCell.title = scene.sceneId;
+        sceneCell.style.padding = "3px";
+        sceneCell.style.borderBottom = "1px solid #eee";
+        sceneCell.style.whiteSpace = "nowrap";
+        sceneCell.style.overflow = "hidden";
+        sceneCell.style.textOverflow = "ellipsis";
+        dateCell.textContent = scene.date || "-";
+        dateCell.title = [`Date: ${scene.date || "-"}`, `Cloud: ${
+          scene.cloudCover ?? "-" }`, `Tiles: ${
+          scene.renderedTileCount}`].join("\n");
+        dateCell.style.padding = "3px";
+        dateCell.style.borderBottom = "1px solid #eee";
+        dateCell.style.whiteSpace = "nowrap";
+        row.appendChild(sceneCell);
+        row.appendChild(dateCell);
+        mosaicScenesBody.appendChild(row);
+      });
+    }
     
     function printUsedMosaicScenes() {
       const sceneList = getUsedMosaicSceneArray();
-      console.group(`[Mosaic Used Scenes] ${sceneList.length} scene(s)`);
-      console.table(sceneList);
-      console.groupEnd();
-      // Consoleから確認できるようグローバル公開
       window.debugUsedMosaicScenes = sceneList;
+      // パネル内テーブルを更新
+      renderUsedMosaicScenesTable();
+      // Consoleにも表示
+      if (sceneList.length > 0) {
+        console.groupCollapsed(`[Mosaic Used Scenes] ` + `${sceneList.length} scene(s)`);
+        console.table(sceneList);
+        console.groupEnd();
+      } else {
+        console.debug("[Mosaic Used Scenes] " + "No scene IDs were extracted.");
+      }
     }
     
     // -------------------------------------------------------------------
@@ -602,6 +715,13 @@ function setupPanelEvents(map) {
     
     // Consoleから実行できるように公開
     window.downloadUsedMosaicScenesCsv = downloadUsedMosaicScenesCsv;
+
+    if (btnDownloadScenes) {
+      btnDownloadScenes.addEventListener("click", function(event) {
+        L.DomEvent.stopPropagation(event);
+        downloadUsedMosaicScenesCsv();
+      });
+    }
     
     // ===================================================================
     // Fetch Satellite Image
@@ -816,6 +936,8 @@ function setupPanelEvents(map) {
         inspectedMosaicTiles.clear();
         
         window.debugUsedMosaicScenes = [];
+
+        renderUsedMosaicScenesTable();
         
         // Save so that it can be checked from the console.
         // Consoleから確認できるように保存
