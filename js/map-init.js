@@ -2,6 +2,8 @@
 window.s2_2025_layer = null;
 window.s2_2026_layer = null;
 
+window.mapBiomas2024Layer = null;
+
 (function initializeGesatMap() {
   const status = document.getElementById("status");
 
@@ -37,7 +39,9 @@ window.s2_2026_layer = null;
     // 背景地図(デフォルト)より手前、ベクトルタイル(300〜)より奥に配置します
     // --------------------------------------------------
     const paneDefinitions = {
-      sentinelPane: 250, // COG画像用の最背面ペイン
+      sentinelPane: 200, // COG画像用の最背面ペイン
+      mapBiomasPane: 250,
+      
       boliviaBasemapPane: 300,
       protectedAreasPane: 400,
 
@@ -180,6 +184,24 @@ window.s2_2026_layer = null;
       }).catch(function (err) {
         console.error("Error loading Sentinel-2 2026 COG:", err);
       });
+    }
+
+    // --------------------------------------------------
+    // MapBiomas 2024 (TiTiler)
+    // --------------------------------------------------
+    if (config.data.mapBiomas2024) {
+      window.mapBiomas2024Layer = L.tileLayer(
+        config.data.mapBiomas2024, {
+          pane: "mapBiomasPane",
+          opacity: 1.0,
+          maxZoom: 19,
+          attribution: "MapBiomas"
+        }
+      );
+      if (config.visibility.mapBiomas2024) {
+        window.mapBiomas2024Layer.addTo(map);
+      }
+      console.log("MapBiomas 2024 layer ready.");
     }
 
     const layers = {
