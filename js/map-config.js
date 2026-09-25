@@ -22,7 +22,8 @@ const GESAT_CONFIG = {
     sentinel2026: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/s2_Tarija_RGB_2026_mosaic_3857r2.tif",
     
     // Single band data saumple through TiTiler
-    mapBiomas2024: "http://localhost:8000/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png" + "?url=file:///data/MapBiomas/Bol_Mapbiomas_LULC_2024_cog.tif",
+    // mapBiomas2024: "http://localhost:8000/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png" + "?url=file:///data/MapBiomas/Bol_Mapbiomas_LULC_2024_cog.tif",
+    mapBiomas2024: "http://localhost:8000/cog/tiles/WebMercatorQuad/{z}/{x}/{y}" + "?url=file:///data/MapBiomas/Bol_Mapbiomas_LULC_2024_cog.tif" + "&colormap_name=viridis" + "&tilesize=512",
     
     // 今回のボリビア市町村FlatGeobufを追加
     boliviaMunicipiosFgb: "https://pub-d44086fa57624870a3a45a6fd01ea211.r2.dev/bolivia_municipios.fgb"
