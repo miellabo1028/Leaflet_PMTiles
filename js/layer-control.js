@@ -15,6 +15,17 @@ function addGesatLayerControl(map, layers, visibility) {
     
     container.innerHTML = `
       <div class="gesat-title">Map layers</div>
+
+      <div class="gesat-section">MapBiomas LULC</div>
+      <div class="gesat-children">
+        <div style="margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <label style="cursor:pointer; flex-grow:1; display:flex; align-items:center; margin:0;">
+          <input type="checkbox" id="chk-mapbiomas-2024" style="margin-right:6px;">
+            MapBiomas (2024)
+          </label>
+          <input type="range" id="sld-mapbiomas-2024" min="0" max="100" value="100" style="width:70px; margin-left:10px;">
+        </div>
+      </div>
      
       <!-- ================================================== -->
       <!-- Sentinel-2 Control UI -->
@@ -120,12 +131,40 @@ function addGesatLayerControl(map, layers, visibility) {
     const boundaryGroupInput = container.querySelector("#admin-boundaries-all");
     const nameGroupInput = container.querySelector("#admin-names-all");
 
+    const mapbiomas_check = container.querySelector("#chk-mapbiomas-2024");
+    const mapbiomas_slide = container.querySelector("#sld-mapbiomas-2024");
+    
     // Sentinel-2 UI要素の取得
     const s2_2025_check = container.querySelector("#chk-s2-2025");
     const s2_2025_slide = container.querySelector("#sld-s2-2025");
     const s2_2026_check = container.querySelector("#chk-s2-2026");
     const s2_2026_slide = container.querySelector("#sld-s2-2026");
 
+    // ==================================================
+    // MapBiomas (2024)
+    // ==================================================
+    if (mapbiomas_check) {
+      mapbiomas_check.checked = Boolean(visibility.mapBiomas2024);
+      mapbiomas_check.addEventListener("change", function () {
+        visibility.mapBiomas2024 = mapbiomas_check.checked;
+        if (window.mapBiomas2024Layer) {
+          if (mapbiomas_check.checked) {
+            map.addLayer(window.mapBiomas2024Layer);
+          } else if (
+            map.hasLayer(window.mapBiomas2024Layer)
+          ) {
+            map.removeLayer(window.mapBiomas2024Layer);
+          }
+        }
+      });
+    }
+    if (mapbiomas_slide) {mapbiomas_slide.addEventListener("input", function () {
+      if (window.mapBiomas2024Layer) {
+        window.mapBiomas2024Layer.setOpacity(parseFloat(mapbiomas_slide.value) / 100);
+      }
+    });
+    }
+          
     // ==================================================
     // Sentinel-2 (2025) 連動イベント
     // ==================================================
