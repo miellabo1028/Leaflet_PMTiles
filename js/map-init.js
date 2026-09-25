@@ -189,15 +189,16 @@ window.mapBiomas2024Layer = null;
     // --------------------------------------------------
     // MapBiomas 2024 (TiTiler)
     // --------------------------------------------------
-    if (config.data.mapBiomas2024) {
-      window.mapBiomas2024Layer = L.tileLayer(
-        config.data.mapBiomas2024, {
-          pane: "mapBiomasPane",
-          opacity: 1.0,
-          maxZoom: 19,
-          attribution: "MapBiomas"
-        }
-      );
+    if (config.data.mapBiomasCog) {
+      const colorMapJson = encodeURIComponent(JSON.stringify(window.MAPBIOMAS_COLORMAP));
+      const mapBiomasUrl = "http://localhost:8000/cog/tiles/WebMercatorQuad/{z}/{x}/{y}" + "?url=" + encodeURIComponent(config.data.mapBiomasCog) + "&colormap=" + colorMapJson + "&tilesize=512";
+      window.mapBiomas2024Layer = L.tileLayer(mapBiomasUrl, {
+        pane: "mapBiomasPane",
+        opacity: 1.0,
+        maxZoom: 19,
+        attribution: "MapBiomas"
+      });
+      
       if (config.visibility.mapBiomas2024) {
         window.mapBiomas2024Layer.addTo(map);
       }
