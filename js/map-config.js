@@ -104,7 +104,7 @@ const GESAT_CONFIG = {
     }
   },
 
-  visible: {
+  visibility: {
     boliviaBasemap: true,
     protectedAreas: true,
 
